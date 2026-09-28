@@ -154,12 +154,11 @@ def show_login_screen():
                         I hope you will take it further than I ever could. Maintain it, improve it, and never stop looking for better ways to support the team.
                         We are not always visible, but our work matters.</p>
                     <p>Stay curious. Keep improving. Be a hidden hero,<br><b>Quality Driven • Since 2026</b></p>
-                    <p> Nếu bạn đang đọc những dòng này, có lẽ hành trình của tôi tại TTi đã khép lại.
-                        Hệ thống này được tạo nên từ bốn năm trải nghiệm thực tế, từ những thành công, thất bại, sai lầm và bài học quý giá trong suốt thời gian tôi phụ trách công việc này. Mỗi chức năng và mỗi cải tiến đều được xây dựng để giải quyết những vấn đề mà chúng ta thực sự gặp phải hằng ngày.
+                    <p> Hệ thống này được tạo nên từ bốn năm trải nghiệm thực tế, từ những thành công, thất bại, sai lầm và bài học quý giá trong suốt thời gian tôi phụ trách công việc này. Mỗi chức năng và mỗi cải tiến đều được xây dựng để giải quyết những vấn đề mà chúng ta thực sự gặp phải hằng ngày.
                         Tôi hy vọng bạn sẽ tiếp tục gìn giữ và phát triển nó, biến nó trở nên tốt hơn từng ngày. Đừng ngần ngại thay đổi, cải tiến và tạo ra những giá trị mới cho đội ngũ.
                         Có thể chúng ta luôn ở phía sau ánh đèn sân khấu, nhưng những gì chúng ta làm đều để lại dấu ấn.
                         Hãy luôn học hỏi. Không ngừng cải tiến. Và tiếp tục là những người hùng thầm lặng.</p>
-                    <p>Hãy luôn học hỏi. Không ngừng cải tiến. Và tiếp tục là những người hùng thầm lặng,<br><b>Quality Driven • Since 2026</b></p>
+                    <p>Hãy luôn học hỏi. Không ngừng cải tiến. Và tiếp tục là những người hùng thầm lặng,<br><b>Lấy chất lượng làm trọng tâm • Từ năm 2026</b></p>
                 </div>
             </div>
         </div>
