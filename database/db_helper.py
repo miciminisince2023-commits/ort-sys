@@ -203,7 +203,7 @@ def authenticate_user(username, password):
         return None
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=false)
 def get_processed_power_tool_data():
     # 1. Kéo toàn bộ dữ liệu cần thiết từ Database thay vì dùng session_state
     df_master = get_master_models()
