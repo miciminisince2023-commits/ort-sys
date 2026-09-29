@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from database.db_helper import authenticate_user, get_processed_power_tool_data
 from database.ui_helper import load_custom_css, load_sidebar_logo
+from datetime import datetime, time
 
 # ================= 1. IMPORT CÁC TRANG (THEO DẠNG HÀM) =================
 # Đây là sự thay đổi quan trọng nhất. Thay vì st.Page, ta import như một thư viện nội bộ
@@ -15,6 +16,7 @@ try:
     report_page = importlib.import_module("views.3_Report_Qty")
     st_page = importlib.import_module("views.4_S_&_T")
     settings_page = importlib.import_module("views.5_Setting")
+    email_page = importlib.import_module("views.6_Email_Center") # Thêm dòng này
     # Các trang khác bạn có thể thêm dần...
 except ImportError as e:
     st.error(f"Lỗi load module giao diện: {e}")
@@ -186,7 +188,7 @@ with st.sidebar:
     st.markdown("<h3 style='font-size: 15px; margin-bottom: -10px; color: #ffffff;'>MAIN MENU</h3>", unsafe_allow_html=True)
     
     if user_role == "admin":
-        menu_options = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T", "⚙️ Setting"]
+        menu_options = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T", "📧 Email Center", "⚙️ Setting"]
     elif user_role == "user":
         menu_options = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T"]
     else:
@@ -271,6 +273,21 @@ with st.sidebar:
     </style>
     """, unsafe_allow_html=True)
 
+# ================= 5.5. KỶ LUẬT THỜI GIAN (LOCK APP SAU 08:30) =================
+if user_role == "admin":
+    now = datetime.now()
+    current_time = now.time()
+    deadline_time = time(8, 30, 0) # Mốc 08:30:00 sáng
+    
+    # Kiểm tra trạng thái gửi báo cáo trong session_state
+    has_sent_today = st.session_state.get("mqa_sent_today", False)
+    
+    # Nếu đã quá giờ, chưa gửi báo cáo, và ĐANG KHÔNG ĐỨNG Ở TRANG EMAIL CENTER
+    if current_time > deadline_time and not has_sent_today:
+        if selected_page != "📧 Email Center":
+            st.error("🚨 **HỆ THỐNG ĐÃ BỊ KHÓA TẠM THỜI!**")
+            st.warning("Bạn chưa gửi báo cáo **VN ORT daily alert** sáng nay. Vui lòng chọn mục **📧 Email Center** ở thanh Menu bên trái để thực hiện tác vụ và mở khóa hệ thống.")
+            st.stop() # Chặn đứng mọi xử lý bên dưới
 
 # ================= 6. KHÔNG GIAN LÀM VIỆC CHÍNH (MAIN AREA) =================
 if selected_page == "📊 Dashboard":
@@ -285,5 +302,7 @@ elif selected_page == "🧪 S & T":
     st_page.render(df_power_tool)
 elif selected_page == "⚙️ Setting":
     settings_page.render(df_power_tool)
+elif selected_page == "📧 Email Center":
+    email_page.render(df_power_tool)
 else:
     st.info(f"Bạn đang chọn {selected_page} - Đang chờ kết nối module.")
