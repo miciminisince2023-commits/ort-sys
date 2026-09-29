@@ -12,10 +12,10 @@ from database.db_helper import get_processed_power_tool_data
 WEBHOOK_URL = "https://default8b8cc6cf0eaa4b6498e46d4672c449.30.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/4d841d0ea31c42069815cbc8825f8772/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cS8aqbT_i151ug54txEagGvZQF0i-OUPu5w1jg2lYNs"
 # Khai báo thông tin người chịu trách nhiệm (P.I.C)
 PIC_SHORTAGE_NAME = "Loki"
-PIC_SHORTAGE_EMAIL = "Minhhung.Pham@ttigroup.com.vn"
+PIC_SHORTAGE_EMAIL = "QuocThai.Vo@ttigroup.com.vn"
 
 PIC_REPORT_NAME = "Jason"
-PIC_REPORT_EMAIL = "Minhhung.Pham@ttigroup.com.vn"
+PIC_REPORT_EMAIL = "HoangPhu.Nguyen@ttigroup.com.vn"
 
 # Tự động gom email lại để gửi cho Power Automate
 TARGET_EMAILS = f"{PIC_SHORTAGE_EMAIL}; {PIC_REPORT_EMAIL}"
