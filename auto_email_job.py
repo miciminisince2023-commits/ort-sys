@@ -11,11 +11,11 @@ from database.db_helper import get_processed_power_tool_data
 
 WEBHOOK_URL = "https://default8b8cc6cf0eaa4b6498e46d4672c449.30.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/4d841d0ea31c42069815cbc8825f8772/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cS8aqbT_i151ug54txEagGvZQF0i-OUPu5w1jg2lYNs"
 # Khai báo thông tin người chịu trách nhiệm (P.I.C)
-PIC_SHORTAGE_NAME = "Minh Hùng"
-PIC_SHORTAGE_EMAIL = "MinhHung.Pham@ttigroup.com.vn"
+PIC_SHORTAGE_NAME = "Loki"
+PIC_SHORTAGE_EMAIL = "Minhhung.Pham@ttigroup.com.vn"
 
-PIC_REPORT_NAME = "Longest"
-PIC_REPORT_EMAIL = "MinhHung.Pham@ttigroup.com.vn"
+PIC_REPORT_NAME = "Jason"
+PIC_REPORT_EMAIL = "Minhhung.Pham@ttigroup.com.vn"
 
 # Tự động gom email lại để gửi cho Power Automate
 TARGET_EMAILS = f"{PIC_SHORTAGE_EMAIL}; {PIC_REPORT_EMAIL}"
@@ -112,16 +112,16 @@ def send_automated_report():
     email_body = f"""
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 900px; margin: auto;">
         <h2 style="color: #000000; background-color: #EBE600; padding: 12px; text-align: center; margin-bottom: 30px;">
-            ⚠️ BÁO CÁO CÔNG VIỆC MQA TEAM ({datetime.now().strftime('%d/%m/%Y')})
+            ⚠️ VN ORT SYSTEM ALERT ({datetime.now().strftime('%d/%m/%Y')})
         </h2>
         
         <div style="margin-bottom: 30px;">
             <p>Dear <a href="mailto:{PIC_SHORTAGE_EMAIL}" style="color: #0078D4; text-decoration: none; font-weight: bold;">@{PIC_SHORTAGE_NAME}</a>,</p>
-            <p>Hiện tại đang có <span style="color: red; font-weight: bold; font-size: 16px;">{len(df_shortage)}</span> model đang <b>THIẾU MẪU</b> (Gap > 0):</p>
+            <p>There are currently <span style="color: red; font-weight: bold; font-size: 16px;">{len(df_shortage)}</span> model with <b>SAMPLE SHORTAGE</b> (Gap > 0):</p>
             {html_shortage}
             
             <br>
-            <p>Danh sách <b>ACTIVE REQUESTS</b> chưa Closed:</p>
+            <p>List of <b>ACTIVE REQUESTS</b> not yet Closed:</p>
             {html_active}
         </div>
         
@@ -129,8 +129,8 @@ def send_automated_report():
         
         <div style="margin-bottom: 30px;">
             <p>Dear <a href="mailto:{PIC_REPORT_EMAIL}" style="color: #0078D4; text-decoration: none; font-weight: bold;">@{PIC_REPORT_NAME}</a>,</p>
-            <p>Hệ thống ghi nhận bạn đang thiếu báo cáo Report Qty <span style="font-size: 20px; color: red; font-weight: bold;">{pending_days_b}</span> ngày làm việc.</p>
-            <p><i>Vui lòng truy cập Dashboard để nhập bổ sung dữ liệu nhằm đảm bảo tiến độ.</i></p>
+            <p>The system has detected that you are missing <span style="font-size: 20px; color: red; font-weight: bold;">{pending_days_b}</span> day(s) of Report Qty data.</p>
+            <p><i>Please access the Dashboard and update the missing data to ensure reporting progress stays on track.</i></p>
         </div>
     </div>
     """
