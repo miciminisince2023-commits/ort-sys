@@ -1,0 +1,112 @@
+/* Ép nền sidebar thành màu đen ngay từ khung render đầu tiên */
+[data-testid="stSidebar"] {
+    background-color: #000000 !important;
+}
+
+/* Ép toàn bộ chữ, icon, tiêu đề bên trong sidebar thành màu trắng */
+[data-testid="stSidebar"] * {
+    color: #FFFFFF !important;
+}
+
+/* Tùy chỉnh nút bấm trong sidebar cho đồng bộ */
+[data-testid="stSidebar"] .stButton button {
+    background-color: #1A1A1A !important;
+    color: #FFFFFF !important;
+    border: 1px solid #333333 !important;
+}
+
+/* Đổi màu nền Header (vùng chứa nút Deploy, menu) thành màu đen */
+[data-testid="stHeader"] {
+    background-color: #000000 !important;
+}
+
+/* Ẩn hoặc tùy chỉnh đường viền/hiệu ứng bóng mờ phía dưới header nếu muốn liền mạch */
+[data-testid="stHeader"] {
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+
+/* Ép toàn bộ chữ, tiêu đề, và các icon mặc định ở vùng Top Bar / Header thành màu trắng */
+[data-testid="stHeader"] *,
+[data-testid="stHeader"] span,
+[data-testid="stHeader"] p,
+[data-testid="stHeader"] div {
+    color: #FFFFFF !important;
+}
+
+/* Tùy chỉnh màu chữ cho tiêu đề ứng dụng chính (nếu nằm ở vùng header chung) */
+header [data-testid="stMarkdownContainer"] p {
+    color: #FFFFFF !important;
+}
+
+/* Tùy chỉnh mục đang được chọn (Active page) trong Sidebar */
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background-color: #ffffff !important;
+    border-radius: 4px !important;
+}
+
+/* Đổi màu chữ và icon của mục đang được chọn thành màu đen cho tương phản */
+[data-testid="stSidebarNav"] a[aria-current="page"] * {
+    color: #000000 !important;
+    font-weight: bold !important;
+}
+
+/* Hiệu ứng khi rê chuột vào (Hover) các mục khác trong sidebar */
+[data-testid="stSidebarNav"] a:hover {
+    background-color: rgba(221, 221, 211, 0.2) !important; /* Màu vàng mờ khi hover */
+    border-radius: 4px !important;
+}
+
+/* Tùy chỉnh tất cả các nút bấm chính (Primary buttons) thành màu đen */
+div.stButton > button[kind="primary"],
+div.stFormSubmitButton > button {
+    background-color: #000000 !important;
+    color: #FFFFFF !important;
+    border: 1px solid #333333 !important;
+}
+
+/* Hiệu ứng khi rê chuột vào nút bấm (Hover) */
+div.stButton > button[kind="primary"]:hover,
+div.stFormSubmitButton > button:hover {
+    background-color: #333333 !important;
+    color: #FFFFFF !important;
+    border-color: #555555 !important;
+}
+
+/* Tùy chỉnh các nút bấm thông thường khác (Secondary buttons nếu có) */
+div.stButton > button {
+    background-color: #000000 !important;
+    color: #FFFFFF !important;
+    border: 1px solid #333333 !important;
+}
+
+div.stButton > button:hover {
+    background-color: #222222 !important;
+    color: #FFFFFF !important;
+}
+
+/* Đồng bộ cỡ chữ phần thông tin user ở sidebar với các tab menu Streamlit */
+[data-testid="stSidebar"] .element-container div p {
+    font-size: 20px !important;
+}
+
+/* Tùy chỉnh lại khung chứa tên user và role trong sidebar cho nổi bật */
+[data-testid="stSidebar"] code {
+    background-color: #222222 !important;
+    color: #EBE600 !important; /* Màu vàng thương hiệu giúp dễ nhìn và cực kỳ nổi bật */
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-weight: bold !important;
+}
+
+/* Ép tất cả các nút bấm thành góc vuông 100% */
+div[data-testid="stButton"] button,
+div[data-testid="stFormSubmitButton"] button,
+[data-testid="stSidebar"] button {
+    border-radius: 0px !important;
+}
+
+/* Ẩn khoảng trắng thừa ở đỉnh trang Streamlit (nếu cần) */
+.block-container {
+    padding-top: 2rem !important;
+}
