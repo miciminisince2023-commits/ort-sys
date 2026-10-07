@@ -236,6 +236,7 @@ def render(df_shared=None):
                 }
                 add_st_request([new_row])
                 st.success("✅ Request successfully saved to Cloud Database!")
+                st.cache_data.clear()  # Clear cache to ensure fresh data is fetched next time
                 st.rerun()
 
     # ================= 3. MODAL EDIT REQUEST =================
@@ -304,6 +305,7 @@ def render(df_shared=None):
             try:
                 supabase.table("st_requests").update(update_data).eq("req_id", req_id).execute()
                 st.success("✅ Request updated successfully in Cloud Database!")
+                st.cache_data.clear()  # Clear cache to ensure fresh data is fetched next time
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Error updating database: {e}")
