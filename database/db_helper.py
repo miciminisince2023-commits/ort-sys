@@ -560,3 +560,143 @@ def get_8d_report_by_id(issue_id):
     except Exception as e:
         print(f"Lỗi lấy chi tiết 8D: {e}")
         return None
+
+def get_mqa_list():
+    try:
+        # Lấy toàn bộ data từ mqa_issues, JOIN kèm dữ liệu từ bảng mqa_d1_team và mqa_d4_rca
+        # Yêu cầu: Các bảng phụ phải có khóa ngoại (Foreign Key) trỏ về id của mqa_issues
+        response = supabase.table("mqa_issues").select(
+            "*, mqa_d1_team(department, pic_name, role), mqa_d4_rca(root_cause, severity)"
+        ).execute()
+        
+        raw_data = response.data
+        formatted_data = []
+        
+        for row in raw_data:
+            # 1. Trích xuất tên Leader từ bảng D1
+            leader = "N/A"
+            if row.get("mqa_d1_team"):
+                for member in row["mqa_d1_team"]:
+                    if member.get("role") == "Leader" or member.get("department") == "MQA":
+                        leader = member.get("pic_name", "N/A")
+                        break
+                        
+            # 2. Trích xuất Root Cause và Severity từ bảng D4
+            root_cause = "N/A"
+            severity = "N/A"
+            if row.get("mqa_d4_rca") and len(row["mqa_d4_rca"]) > 0:
+                root_cause = row["mqa_d4_rca"][0].get("root_cause", "N/A")
+                severity = row["mqa_d4_rca"][0].get("severity", "N/A")
+                
+            # 3. Làm phẳng dictionary để trả về cho UI
+            flat_row = row.copy()
+            flat_row.pop("mqa_d1_team", None)  # Xóa mảng lồng nhau cho gọn
+            flat_row.pop("mqa_d4_rca", None)
+            
+            # Gắn các cột mới vào đúng tên mà UI đang chờ
+            flat_row["leader_mqa"] = leader
+            flat_row["root_cause"] = root_cause
+            flat_row["severity"] = severity
+            
+            formatted_data.append(flat_row)
+            
+        return formatted_data
+    except Exception as e:
+        print(f"Error fetching MQA list: {e}")
+        return []
+
+def update_8d_report(issue_id, main_data, d1_list, d3_list, d4_list, d5_list):
+    try:
+        # 1. Cập nhật dữ liệu bảng chính (mqa_issues)
+        supabase.table("mqa_issues").update(main_data).eq("id", issue_id).execute()
+        
+        # 2. Xóa sạch dữ liệu cũ ở các bảng phụ dựa trên issue_id
+        supabase.table("mqa_d1_team").delete().eq("issue_id", issue_id).execute()
+        supabase.table("mqa_d3_actions").delete().eq("issue_id", issue_id).execute()
+        supabase.table("mqa_d4_rca").delete().eq("issue_id", issue_id).execute()
+        supabase.table("mqa_d5_actions").delete().eq("issue_id", issue_id).execute()
+        
+        # 3. Gắn issue_id vào các mảng dữ liệu mới và Insert lại
+        for d in d1_list: d["issue_id"] = issue_id
+        for d in d3_list: d["issue_id"] = issue_id
+        for d in d4_list: d["issue_id"] = issue_id
+        for d in d5_list: d["issue_id"] = issue_id
+        
+        if d1_list: supabase.table("mqa_d1_team").insert(d1_list).execute()
+        if d3_list: supabase.table("mqa_d3_actions").insert(d3_list).execute()
+        if d4_list: supabase.table("mqa_d4_rca").insert(d4_list).execute()
+        if d5_list: supabase.table("mqa_d5_actions").insert(d5_list).execute()
+        
+        return True, issue_id
+    except Exception as e:
+        print(f"Error updating 8D report: {e}")
+        return False, str(e)
+
+def generate_ncr_no():
+    """Hàm tạo mã báo cáo tự động định dạng NCR-YYYYMMDD-XXXX"""
+    today_str = datetime.datetime.now().strftime('%Y%m%d')
+    prefix = f"NCR-{today_str}-"
+    try:
+        # Lấy tất cả các mã report bắt đầu bằng prefix của ngày hôm nay
+        response = supabase.table("mqa_issues").select("report_no").ilike("report_no", f"{prefix}%").execute()
+        data = response.data
+        
+        if not data:
+            return f"{prefix}0001" # Nếu chưa có mã nào hôm nay, trả về 0001
+        
+        max_seq = 0
+        for row in data:
+            report_no = row.get("report_no", "")
+            try:
+                # Cắt chuỗi lấy 4 số cuối và so sánh tìm số lớn nhất
+                seq = int(report_no.split("-")[-1])
+                if seq > max_seq:
+                    max_seq = seq
+            except:
+                continue
+                
+        next_seq = max_seq + 1
+        return f"{prefix}{next_seq:04d}"
+    except Exception as e:
+        print(f"Error generating NCR No: {e}")
+        return f"{prefix}9999" # Trả về 9999 nếu có lỗi mạng/database
+
+def get_all_actions():
+    """Kéo và gộp toàn bộ action từ D3 và D5, kèm theo Report No và issue_id"""
+    try:
+        issues_res = supabase.table("mqa_issues").select("id, report_no").execute()
+        issue_dict = {item['id']: item['report_no'] for item in issues_res.data}
+
+        d3_res = supabase.table("mqa_d3_actions").select("*").execute()
+        d5_res = supabase.table("mqa_d5_actions").select("*").execute()
+
+        all_actions = []
+
+        for row in d3_res.data:
+            all_actions.append({
+                "issue_id": row.get('issue_id'), # Đã bổ sung ID gốc để link tới popup
+                "Report No.": issue_dict.get(row.get('issue_id'), 'N/A'),
+                "Action Type": "ICA (D3)",
+                "Action Code": row.get('action_code', ''),
+                "Description": row.get('action_desc', ''),
+                "Owner": row.get('owner', ''),
+                "Due Date": row.get('due_date', ''),
+                "Status": row.get('status', '')
+            })
+
+        for row in d5_res.data:
+            all_actions.append({
+                "issue_id": row.get('issue_id'), # Đã bổ sung ID gốc để link tới popup
+                "Report No.": issue_dict.get(row.get('issue_id'), 'N/A'),
+                "Action Type": "PCA (D5)",
+                "Action Code": row.get('action_code', ''),
+                "Description": row.get('action_desc', ''),
+                "Owner": row.get('owner', ''),
+                "Due Date": row.get('due_date', ''),
+                "Status": row.get('status', '')
+            })
+
+        return all_actions
+    except Exception as e:
+        print(f"Error fetching actions: {e}")
+        return []

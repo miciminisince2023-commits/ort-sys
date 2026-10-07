@@ -1,12 +1,21 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from database.db_helper import save_8d_report, get_mqa_list, get_8d_report_by_id
+from database.db_helper import save_8d_report, update_8d_report, get_mqa_list, get_8d_report_by_id, generate_ncr_no
 import textwrap
 import streamlit.components.v1 as components
 
 # =========================================================
-# HÀM TẠO POPUP A4 (SỬ DỤNG COMPONENTS.HTML ĐỂ TRÁNH LỖI MARKDOWN)
+# HÀM DỌN DẸP BỘ NHỚ (TRÁNH LỖI FORM TRỐNG HOẶC LƯU NHẦM DỮ LIỆU CŨ)
+# =========================================================
+def clear_form_state():
+    keys_to_clear = ["edit_issue_id", "data_loaded", "d1_row_count", "d3_row_count", "d4_row_count", "d5_row_count"]
+    for k in list(st.session_state.keys()):
+        if k in keys_to_clear or k.startswith(("h_", "d2_", "d1_", "d3_", "d4_", "d5_")):
+            del st.session_state[k]
+
+# =========================================================
+# HÀM TẠO POPUP A4
 # =========================================================
 @st.dialog("📄 8D CORRECTIVE ACTION REPORT", width="large")
 def show_a4_popup(issue_id):
@@ -25,7 +34,6 @@ def show_a4_popup(issue_id):
     ng = main.get('ng_qty', 0)
     rate = f"{(ng/ins)*100:.2f}%" if ins > 0 else "0%"
 
-    # Xây dựng các dòng dữ liệu HTML
     d1_html = "".join([f"<tr><td>{r.get('department','')}</td><td>{r.get('pic_name','')}</td><td>{r.get('role','')}</td></tr>" for r in d1])
     d3_html = "".join([f"<tr><td>{r.get('action_code','')}</td><td>{r.get('action_desc','')}</td><td>{r.get('owner','')}</td><td>{r.get('due_date','')}</td><td>{r.get('status','')}</td></tr>" for r in d3])
     d4_html = "".join([f"<tr><td>{r.get('root_cause','')}</td><td>{r.get('failure_analysis','')}</td><td>{r.get('issue_part','')}</td><td>{r.get('supplier','')}</td><td>{r.get('failure_code','')}</td><td>{r.get('failure_group','')}</td><td>{r.get('severity','')}</td></tr>" for r in d4])
@@ -34,24 +42,14 @@ def show_a4_popup(issue_id):
     report_link = main.get('analysis_report_link', '')
     link_html = f'<a href="{report_link}" target="_blank" style="color: #0066cc;">{report_link}</a>' if report_link else "N/A"
 
-    # HTML Document hoàn chỉnh
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <style>
-        body {{ 
-            margin: 0; padding: 10px; background-color: #f4f4f4; 
-        }}
-        .a4-container {{
-            background-color: white; color: black; padding: 40px; 
-            font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1); border: 1px solid #ddd;
-            max-width: 800px; margin: 0 auto;
-            pointer-events: none;
-            user-select: none;
-        }}
-        .a4-container a {{ pointer-events: auto; }} /* Cho phép click vào link */
+        body {{ margin: 0; padding: 10px; background-color: #f4f4f4; }}
+        .a4-container {{ background-color: white; color: black; padding: 40px; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; box-shadow: 0 0 10px rgba(0,0,0,0.1); border: 1px solid #ddd; max-width: 800px; margin: 0 auto; pointer-events: none; user-select: none; }}
+        .a4-container a {{ pointer-events: auto; }} 
         .a4-title {{ text-align: center; font-size: 22px; font-weight: 900; margin-bottom: 20px; }}
         .a4-section {{ font-weight: bold; font-size: 15px; background-color: #f0f0f0; padding: 8px; margin-top: 20px; border-left: 5px solid #EBE600; text-transform: uppercase; }}
         .a4-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
@@ -62,51 +60,35 @@ def show_a4_popup(issue_id):
     <body>
         <div class="a4-container">
             <div class="a4-title">8D REPORT: {main.get('report_no', '')}</div>
-            
             <div class="a4-section">General Information</div>
             <table class="a4-table">
                 <tr><th>Issue Date</th><td>{main.get('issue_date', '')}</td><th>TTI Model</th><td>{main.get('tti_model', '')}</td></tr>
                 <tr><th>Inspect Qty</th><td>{ins}</td><th>Defect Rate</th><td>{rate}</td></tr>
                 <tr><th>Description</th><td colspan="3">{main.get('issue_description', '')}</td></tr>
             </table>
-            
             <div class="a4-section">D1: Team Members</div>
-            <table class="a4-table">
-                <tr><th>Department</th><th>PIC Name</th><th>Role</th></tr>
-                {d1_html}
-            </table>
-            
+            <table class="a4-table"><tr><th>Department</th><th>PIC Name</th><th>Role</th></tr>{d1_html}</table>
             <div class="a4-section">D3: Interim Containment Actions</div>
-            <table class="a4-table">
-                <tr><th>Code</th><th>Action Description</th><th>Owner</th><th>Due Date</th><th>Status</th></tr>
-                {d3_html}
-            </table>
-            
+            <table class="a4-table"><tr><th>Code</th><th>Action Description</th><th>Owner</th><th>Due Date</th><th>Status</th></tr>{d3_html}</table>
             <div class="a4-section">D4: Root Cause Analysis</div>
-            <table class="a4-table">
-                <tr><th>Root Cause</th><th>Analysis</th><th>Issue Part</th><th>Supplier</th><th>F. Code</th><th>F. Group</th><th>Severity</th></tr>
-                {d4_html}
-            </table>
-            
+            <table class="a4-table"><tr><th>Root Cause</th><th>Analysis</th><th>Issue Part</th><th>Supplier</th><th>F. Code</th><th>F. Group</th><th>Severity</th></tr>{d4_html}</table>
             <div class="a4-section">D5: Permanent Corrective Action & Verification</div>
-            <table class="a4-table">
-                <tr><th>Code</th><th>Action Description</th><th>Owner</th><th>Due Date</th><th>Status</th><th>Validate</th><th>Val. Date</th></tr>
-                {d5_html}
-            </table>
-            
+            <table class="a4-table"><tr><th>Code</th><th>Action Description</th><th>Owner</th><th>Due Date</th><th>Status</th><th>Validate</th><th>Val. Date</th></tr>{d5_html}</table>
             <div class="a4-section">Analysis Report Link</div>
-            <div style="padding: 10px; border: 1px solid #555; margin-top: 10px;">
-                {link_html}
-            </div>
-            
+            <div style="padding: 10px; border: 1px solid #555; margin-top: 10px;">{link_html}</div>
             <p style="text-align: right; margin-top: 30px; font-style: italic;">Generated by ORT System</p>
         </div>
     </body>
     </html>
     """
-    
-    # Render thông qua components.html
     components.html(html_content, height=750, scrolling=True)
+
+    # NÚT EDIT (KÈM DỌN DẸP BỘ NHỚ TRƯỚC KHI CHUYỂN SANG FORM)
+    if st.button("✏️ Edit This Report", use_container_width=True):
+        clear_form_state()
+        st.session_state.mqa_view_mode = "form"  
+        st.session_state.edit_issue_id = issue_id  
+        st.rerun()
 
 def render(df_power_tool=None):
     if "mqa_view_mode" not in st.session_state:
@@ -117,46 +99,37 @@ def render(df_power_tool=None):
     # =========================================================
     if st.session_state.mqa_view_mode == "list":
         st.markdown("<h2 style='color: #EBE600;'>📊 MQA TRACKING LIST</h2>", unsafe_allow_html=True)
-        
         col_title, col_btn = st.columns([8, 2])
         with col_title:
             st.markdown("<p style='color: gray;'>Giám sát và quản lý toàn bộ hệ thống sự cố chất lượng</p>", unsafe_allow_html=True)
         with col_btn:
             if st.button("➕ Record New Issue", type="primary", use_container_width=True):
+                clear_form_state()
                 st.session_state.mqa_view_mode = "form"
                 st.rerun()
                 
         st.divider()
-        
-        # --- KHU VỰC 1: BỘ LỌC ---
         f_col1, f_col2, f_col3, f_col4 = st.columns(4)
         with f_col1: st.selectbox("Status", ["All", "Open", "Closed"])
         with f_col2: st.date_input("Date Range", [])
         with f_col3: st.selectbox("Model", ["All", "Model A", "Model B"])
         with f_col4: st.selectbox("Owner (PIC)", ["All", "Richard", "John Doe"])
         
-        # --- KHU VỰC 2: BẢNG HIỂN THỊ DỮ LIỆU (TƯƠNG TÁC) ---
         st.markdown("<br><b>Danh sách Báo cáo 8D</b>", unsafe_allow_html=True)
-        
-        # Kéo dữ liệu từ Database
         issues_list = get_mqa_list()
         
         if not issues_list:
             st.markdown("<p style='text-align: center; color: gray;'>Chưa có báo cáo nào trong hệ thống.</p>", unsafe_allow_html=True)
         else:
-            # 1. Chuyển list dữ liệu thành DataFrame
             df_raw = pd.DataFrame(issues_list)
-            
-            # 2. Tính toán Open duration (Từ ngày Date opened đến hôm nay)
             if 'date_opened' in df_raw.columns:
                 valid_dates = pd.to_datetime(df_raw['date_opened'], errors='coerce')
                 df_raw['Open duration'] = (pd.Timestamp.now().normalize() - valid_dates.dt.normalize()).dt.days
             else:
                 df_raw['Open duration'] = 0
 
-            # 3. Đổi tên cột chuẩn xác theo đúng database của bạn
             rename_dict = {
-                "report_no": "Report No.",
+                "report_no": "Report No.",  
                 "date_opened": "Date opened",
                 "issue_description": "Issue desc.",
                 "mfg_source": "Mfg source",
@@ -167,44 +140,25 @@ def render(df_power_tool=None):
                 "tti_model": "TTI Model",
                 "customer_model": "Customer Model",
                 "master_category": "Master category",
-                "leader_mqa": "Leader: (MQA)",   # Chờ backend join dữ liệu D1
-                "root_cause": "Root cause",      # Chờ backend join dữ liệu D4
-                "severity": "Severity"           # Chờ backend join dữ liệu D4
+                "leader_mqa": "Leader: (MQA)",   
+                "root_cause": "Root cause",      
+                "severity": "Severity"           
             }
             df_mapped = df_raw.rename(columns=rename_dict)
+            cols_to_show = ["Report No.", "Date opened", "Leader: (MQA)", "Issue desc.", "Mfg source", "Sensor", "Line", "Shift", "Issue date", "TTI Model", "Customer Model", "Master category", "Root cause", "Severity", "Open duration"]
 
-            # 4. Sắp xếp đúng 15 cột hiển thị theo thứ tự bạn yêu cầu
-            cols_to_show = [
-                "Report No.", "Date opened", "Leader: (MQA)", "Issue desc.", 
-                "Mfg source", "Sensor", "Line", "Shift", "Issue date", 
-                "TTI Model", "Customer Model", "Master category", 
-                "Root cause", "Severity", "Open duration"
-            ]
-
-            # Bơm tạm giá trị "N/A" cho các cột lấy từ bảng phụ (như D1, D4) nếu API chưa kịp gộp vào
             for col in cols_to_show:
-                if col not in df_mapped.columns:
-                    df_mapped[col] = "N/A"
+                if col not in df_mapped.columns: df_mapped[col] = "N/A"
 
             df_display = df_mapped[cols_to_show].copy()
             df_display.insert(0, "View", "👁️")
             df_display.insert(1, "No.", range(1, len(df_display) + 1))
 
-            # 5. Render bảng tương tác Dataframe
-            event = st.dataframe(
-                df_display, 
-                use_container_width=True, 
-                hide_index=True,
-                selection_mode="single-row",
-                on_select="rerun",
-                key="mqa_tracking_table"
-            )
-
-            # 6. Kích hoạt Popup tờ A4 khi click vào bất kỳ dòng nào
+            event = st.dataframe(df_display, use_container_width=True, hide_index=True, selection_mode="single-row", on_select="rerun", key="mqa_tracking_table")
             selected_rows = event.selection.get("rows", [])
             if selected_rows:
                 idx = selected_rows[0]
-                selected_issue_id = df_raw.iloc[idx]["id"] # Lấy lại đúng ID gốc từ DB
+                selected_issue_id = df_raw.iloc[idx]["id"] 
                 show_a4_popup(selected_issue_id)
                 
     # =========================================================
@@ -212,12 +166,87 @@ def render(df_power_tool=None):
     # =========================================================
     elif st.session_state.mqa_view_mode == "form":
         
-        # Nút Quay lại
         col_back, _ = st.columns([2, 8])
         with col_back:
             if st.button("⬅️ Back to Tracking List", use_container_width=True):
+                clear_form_state()
                 st.session_state.mqa_view_mode = "list"
                 st.rerun()
+
+        # --- LOGIC BƠM DỮ LIỆU ĐÃ ĐƯỢC CHUẨN HÓA ---
+        is_edit_mode = "edit_issue_id" in st.session_state
+        if is_edit_mode and "data_loaded" not in st.session_state:
+            old_data = get_8d_report_by_id(st.session_state.edit_issue_id)
+            if old_data:
+                main = old_data.get("main", {})
+                
+                # Trả về chuẩn Date object để tránh lỗi Streamlit date_input
+                def parse_date(d_str):
+                    try: return datetime.strptime(str(d_str)[:10], '%Y-%m-%d').date()
+                    except: return datetime.now().date()
+
+                st.session_state.h_status = main.get("status", "Open")
+                st.session_state.h_report_no = main.get("report_no", "")
+                st.session_state.h_date_opened = parse_date(main.get("date_opened", ""))
+                st.session_state.d2_desc = main.get("issue_description", "")
+                st.session_state.d2_region = main.get("region", "Region 1")
+                st.session_state.d2_source = main.get("mfg_source", "Source A")
+                st.session_state.d2_sensor = main.get("sensor", "None")
+                st.session_state.d2_line = main.get("line", "Line 1")
+                st.session_state.d2_shift = main.get("shift", "Shift 1")
+                st.session_state.d2_ins_qty = int(main.get("inspect_qty", 0))
+                st.session_state.d2_ng_qty = int(main.get("ng_qty", 0))
+                st.session_state.d2_tti_model = main.get("tti_model", "")
+                st.session_state.d2_cus_model = main.get("customer_model", "")
+                st.session_state.d2_brand = main.get("brand", "RYOBI")
+                st.session_state.d2_master_cat = main.get("master_category", "Category A")
+                st.session_state.d2_prod_cat = main.get("product_category", "Product 1")
+                st.session_state.d2_issue_date = parse_date(main.get("issue_date", ""))
+                st.session_state.d4_report_link = main.get("analysis_report_link", "")
+
+                d1 = old_data.get("d1", [])
+                st.session_state.d1_row_count = len(d1) if d1 else 1
+                for i, row in enumerate(d1):
+                    st.session_state[f"d1_dept_{i}"] = row.get("department", "MQA")
+                    st.session_state[f"d1_pic_{i}"] = row.get("pic_name", "Unassigned")
+                    st.session_state[f"d1_role_{i}"] = row.get("role", "Member")
+
+                d3 = old_data.get("d3", [])
+                st.session_state.d3_row_count = len(d3) if d3 else 1
+                for i, row in enumerate(d3):
+                    st.session_state[f"d3_code_{i}"] = row.get("action_code", f"ICA-{i+1:02d}")
+                    st.session_state[f"d3_action_{i}"] = row.get("action_desc", "")
+                    st.session_state[f"d3_owner_{i}"] = row.get("owner", "Unassigned")
+                    st.session_state[f"d3_date_{i}"] = parse_date(row.get("due_date", ""))
+                    st.session_state[f"d3_status_{i}"] = row.get("status", "Open")
+                    st.session_state[f"d3_justification_{i}"] = row.get("justification", "")
+
+                d4 = old_data.get("d4", [])
+                st.session_state.d4_row_count = len(d4) if d4 else 1
+                for i, row in enumerate(d4):
+                    st.session_state[f"d4_rc_{i}"] = row.get("root_cause", "Man")
+                    st.session_state[f"d4_analysis_{i}"] = row.get("failure_analysis", "")
+                    st.session_state[f"d4_part_{i}"] = row.get("issue_part", "")
+                    st.session_state[f"d4_sup_{i}"] = row.get("supplier", "")
+                    st.session_state[f"d4_fc_{i}"] = row.get("failure_code", "FC-001")
+                    st.session_state[f"d4_fg_{i}"] = row.get("failure_group", "Electrical")
+                    st.session_state[f"d4_mode_{i}"] = row.get("failure_mode", "")
+                    st.session_state[f"d4_sev_{i}"] = row.get("severity", "Minor")
+
+                d5 = old_data.get("d5", [])
+                st.session_state.d5_row_count = len(d5) if d5 else 1
+                for i, row in enumerate(d5):
+                    st.session_state[f"d5_code_{i}"] = row.get("action_code", f"PCA-{i+1:02d}")
+                    st.session_state[f"d5_action_{i}"] = row.get("action_desc", "")
+                    st.session_state[f"d5_owner_{i}"] = row.get("owner", "Unassigned")
+                    st.session_state[f"d5_date_{i}"] = parse_date(row.get("due_date", ""))
+                    st.session_state[f"d5_status_{i}"] = row.get("status", "Open")
+                    st.session_state[f"d5_val_status_{i}"] = row.get("validate_status", "Pending")
+                    st.session_state[f"d5_val_date_{i}"] = parse_date(row.get("validate_date", ""))
+                    st.session_state[f"d5_justification_{i}"] = row.get("justification", "")
+                
+            st.session_state.data_loaded = True 
+            st.rerun()
 
         st.markdown("""
         <style>
@@ -232,12 +261,23 @@ def render(df_power_tool=None):
 
         # --- 1. HEADER ---
         with st.expander("⚡️ HEADER: GENERAL INFORMATION", expanded=True):
-            col1, col2 = st.columns(2)
+            # Chia làm 3 cột để nhét thêm Status
+            col1, col2, col3 = st.columns([1.5, 1.5, 1])
             with col1:
-                default_report_no = f"MQA-{datetime.now().strftime('%Y%m%d')}-001"
-                st.text_input("Report No.", value=default_report_no, key="h_report_no")
+                # Nếu là tạo mới và chưa có mã, gọi hàm sinh mã tự động
+                if "h_report_no" not in st.session_state or not st.session_state.h_report_no:
+                    st.session_state.h_report_no = generate_ncr_no()
+                # Khóa cứng (disabled=True) không cho sửa
+                st.text_input("Report No.", key="h_report_no", disabled=True)
             with col2:
-                st.date_input("Date opened", value=datetime.now(), key="h_date_opened")
+                if "h_date_opened" not in st.session_state:
+                    st.session_state.h_date_opened = datetime.now().date()
+                st.date_input("Date opened", key="h_date_opened")
+            with col3:
+                # Thêm trường Status
+                if "h_status" not in st.session_state:
+                    st.session_state.h_status = "Open"
+                st.selectbox("Status", ["Open", "In Progress", "Closed", "Cancelled"], key="h_status")
 
         # --- 2. D1: FTT ---
         with st.expander("⚡️ D1: FTT (Form The Team)", expanded=True):
@@ -269,7 +309,6 @@ def render(df_power_tool=None):
                 with col3: st.selectbox("Role", role_list, key=f"d1_role_{i}", label_visibility="collapsed")
                     
             st.markdown('</div>', unsafe_allow_html=True)
-
             btn_col1, btn_col2, _ = st.columns([1.5, 1.5, 3])
             with btn_col1:
                 if st.button("➕ Add Member", use_container_width=True):
@@ -277,9 +316,6 @@ def render(df_power_tool=None):
                     st.rerun()
             with btn_col2:
                 if st.button("➖ Remove Last Row", use_container_width=True) and st.session_state.d1_row_count > 1:
-                    keys_to_remove = [f"d1_dept_{st.session_state.d1_row_count-1}", f"d1_pic_{st.session_state.d1_row_count-1}", f"d1_role_{st.session_state.d1_row_count-1}"]
-                    for key in keys_to_remove:
-                        if key in st.session_state: del st.session_state[key]
                     st.session_state.d1_row_count -= 1
                     st.rerun()
 
@@ -298,18 +334,18 @@ def render(df_power_tool=None):
                 st.selectbox("Shift", ["Shift 1", "Shift 2", "Shift 3"], key="d2_shift")
                 
             with col2:
-                inspect_qty = st.number_input("Inspect qty", min_value=0, value=0, step=1, key="d2_ins_qty")
-                ng_qty = st.number_input("NG qty", min_value=0, value=0, step=1, key="d2_ng_qty")
-                defect_rate = 0.0
-                if inspect_qty > 0: defect_rate = (ng_qty / inspect_qty) * 100
-                st.text_input("Defect rate", value=f"{defect_rate:.2f} %", disabled=True, key="d2_rate")
+                inspect_qty = st.number_input("Inspect qty", min_value=0, step=1, key="d2_ins_qty")
+                ng_qty = st.number_input("NG qty", min_value=0, step=1, key="d2_ng_qty")
+                defect_rate = (ng_qty / inspect_qty * 100) if inspect_qty > 0 else 0.0
+                st.text_input("Defect rate", value=f"{defect_rate:.2f} %", disabled=True)
                 st.text_input("TTI Model", placeholder="Enter TTI Model", key="d2_tti_model")
                 st.text_input("Customer Model", placeholder="Enter Customer Model", key="d2_cus_model")
                 
             with col3:
                 st.selectbox("Master Category", ["Category A", "Category B"], key="d2_master_cat")
                 st.selectbox("Product Categories", ["Product 1", "Product 2", "Product 3"], key="d2_prod_cat")
-                st.date_input("Issue Date", value=datetime.now(), key="d2_issue_date")
+                if "d2_issue_date" not in st.session_state: st.session_state.d2_issue_date = datetime.now().date()
+                st.date_input("Issue Date", key="d2_issue_date")
                 st.selectbox("Brand", ["RYOBI", "Milwaukee", "RIDGID", "Hoover"], key="d2_brand")
 
         # --- 4. D3: ICR ---
@@ -327,22 +363,23 @@ def render(df_power_tool=None):
             with h_col5: st.markdown("**Status**")
             st.markdown("<hr style='margin-top: 0px; margin-bottom: 10px;'>", unsafe_allow_html=True)
 
-            if st.session_state.d3_row_count == 0:
-                st.markdown("<p style='text-align: center; font-style: italic; color: gray;'>No containment actions added yet.</p>", unsafe_allow_html=True)
-
             for i in range(st.session_state.d3_row_count):
                 c1, c2, c3, c4, c5 = st.columns([1, 3, 1.5, 1.5, 1])
-                with c1: st.text_input("Code", value=f"ICA-{i+1:02d}", key=f"d3_code_{i}", disabled=True, label_visibility="collapsed")
+                with c1: 
+                    if f"d3_code_{i}" not in st.session_state: st.session_state[f"d3_code_{i}"] = f"ICA-{i+1:02d}"
+                    st.text_input("Code", key=f"d3_code_{i}", disabled=True, label_visibility="collapsed")
                 with c2: st.text_input("Action", placeholder="Describe action...", key=f"d3_action_{i}", label_visibility="collapsed")
                 with c3: st.selectbox("Owner", owner_list, key=f"d3_owner_{i}", label_visibility="collapsed")
-                with c4: st.date_input("Due date", key=f"d3_date_{i}", label_visibility="collapsed")
-                with c5: current_status = st.selectbox("Status", status_list, key=f"d3_status_{i}", label_visibility="collapsed")
+                with c4: 
+                    if f"d3_date_{i}" not in st.session_state: st.session_state[f"d3_date_{i}"] = datetime.now().date()
+                    st.date_input("Due date", key=f"d3_date_{i}", label_visibility="collapsed")
+                with c5: 
+                    current_status = st.selectbox("Status", status_list, key=f"d3_status_{i}", label_visibility="collapsed")
                 
                 if current_status == "Cancelled":
-                    st.text_input(f"Justification for ICA-{i+1:02d}", placeholder="⚠️ Please provide mandatory justification...", key=f"d3_justification_{i}")
+                    st.text_input(f"Justification for ICA-{i+1:02d}", placeholder="⚠️️ Please provide mandatory justification...", key=f"d3_justification_{i}")
                     
             st.markdown('</div>', unsafe_allow_html=True)
-
             btn_col1, btn_col2, _ = st.columns([1.5, 1.5, 5])
             with btn_col1:
                 if st.button("➕ Add Action", key="btn_add_d3", use_container_width=True):
@@ -350,10 +387,6 @@ def render(df_power_tool=None):
                     st.rerun()
             with btn_col2:
                 if st.button("➖ Remove Last", key="btn_rem_d3", use_container_width=True) and st.session_state.d3_row_count > 0:
-                    last_idx = st.session_state.d3_row_count - 1
-                    keys_to_remove = [f"d3_code_{last_idx}", f"d3_action_{last_idx}", f"d3_owner_{last_idx}", f"d3_date_{last_idx}", f"d3_status_{last_idx}", f"d3_justification_{last_idx}"]
-                    for key in keys_to_remove:
-                        if key in st.session_state: del st.session_state[key]
                     st.session_state.d3_row_count -= 1
                     st.rerun()
 
@@ -391,7 +424,6 @@ def render(df_power_tool=None):
                 with c[7]: st.selectbox("Severity", sev_list, key=f"d4_sev_{i}", label_visibility="collapsed")
                     
             st.markdown('</div>', unsafe_allow_html=True)
-
             btn_col1, btn_col2, _ = st.columns([1.5, 1.5, 5])
             with btn_col1:
                 if st.button("➕ Add Root Cause", key="btn_add_d4", use_container_width=True):
@@ -399,10 +431,6 @@ def render(df_power_tool=None):
                     st.rerun()
             with btn_col2:
                 if st.button("➖ Remove Last", key="btn_rem_d4", use_container_width=True) and st.session_state.d4_row_count > 1:
-                    idx = st.session_state.d4_row_count - 1
-                    keys_to_remove = [f"d4_rc_{idx}", f"d4_analysis_{idx}", f"d4_part_{idx}", f"d4_sup_{idx}", f"d4_fc_{idx}", f"d4_fg_{idx}", f"d4_mode_{idx}", f"d4_sev_{idx}"]
-                    for key in keys_to_remove:
-                        if key in st.session_state: del st.session_state[key]
                     st.session_state.d4_row_count -= 1
                     st.rerun()
 
@@ -429,24 +457,26 @@ def render(df_power_tool=None):
             with h_cols[6]: st.markdown("**Val. Date**")
             st.markdown("<hr style='margin-top: 0px; margin-bottom: 10px;'>", unsafe_allow_html=True)
 
-            if st.session_state.d5_row_count == 0:
-                st.markdown("<p style='text-align: center; font-style: italic; color: gray;'>No corrective actions added yet.</p>", unsafe_allow_html=True)
-
             for i in range(st.session_state.d5_row_count):
                 c = st.columns(col_widths)
-                with c[0]: st.text_input("Code", value=f"PCA-{i+1:02d}", key=f"d5_code_{i}", disabled=True, label_visibility="collapsed")
+                with c[0]: 
+                    if f"d5_code_{i}" not in st.session_state: st.session_state[f"d5_code_{i}"] = f"PCA-{i+1:02d}"
+                    st.text_input("Code", key=f"d5_code_{i}", disabled=True, label_visibility="collapsed")
                 with c[1]: st.text_input("Action", placeholder="Describe permanent action...", key=f"d5_action_{i}", label_visibility="collapsed")
                 with c[2]: st.selectbox("Owner", owner_list, key=f"d5_owner_{i}", label_visibility="collapsed")
-                with c[3]: st.date_input("Due date", key=f"d5_date_{i}", label_visibility="collapsed")
+                with c[3]: 
+                    if f"d5_date_{i}" not in st.session_state: st.session_state[f"d5_date_{i}"] = datetime.now().date()
+                    st.date_input("Due date", key=f"d5_date_{i}", label_visibility="collapsed")
                 with c[4]: current_status = st.selectbox("Status", status_list, key=f"d5_status_{i}", label_visibility="collapsed")
                 with c[5]: st.selectbox("Validate", validate_list, key=f"d5_val_status_{i}", label_visibility="collapsed")
-                with c[6]: st.date_input("Val. Date", key=f"d5_val_date_{i}", label_visibility="collapsed")
+                with c[6]: 
+                    if f"d5_val_date_{i}" not in st.session_state: st.session_state[f"d5_val_date_{i}"] = datetime.now().date()
+                    st.date_input("Val. Date", key=f"d5_val_date_{i}", label_visibility="collapsed")
                 
                 if current_status == "Cancelled":
                     st.text_input(f"Justification for PCA-{i+1:02d}", placeholder="⚠️ Please provide mandatory justification...", key=f"d5_justification_{i}")
                     
             st.markdown('</div>', unsafe_allow_html=True)
-
             btn_col1, btn_col2, _ = st.columns([1.5, 1.5, 5])
             with btn_col1:
                 if st.button("➕ Add Action", key="btn_add_d5", use_container_width=True):
@@ -454,19 +484,16 @@ def render(df_power_tool=None):
                     st.rerun()
             with btn_col2:
                 if st.button("➖ Remove Last", key="btn_rem_d5", use_container_width=True) and st.session_state.d5_row_count > 0:
-                    idx = st.session_state.d5_row_count - 1
-                    keys_to_remove = [f"d5_code_{idx}", f"d5_action_{idx}", f"d5_owner_{idx}", f"d5_date_{idx}", f"d5_status_{idx}", f"d5_val_status_{idx}", f"d5_val_date_{idx}", f"d5_justification_{idx}"]
-                    for key in keys_to_remove:
-                        if key in st.session_state: del st.session_state[key]
                     st.session_state.d5_row_count -= 1
                     st.rerun()
 
         # --- 7. NÚT LƯU BÁO CÁO VÀ GỌI API ---
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("💾 SAVE ISSUE REPORT", type="primary", use_container_width=True):
-            with st.spinner("Đang lưu báo cáo vào hệ thống..."):
+        btn_label = "🔄 UPDATE ISSUE REPORT" if is_edit_mode else "💾 SAVE NEW ISSUE REPORT"
+        
+        if st.button(btn_label, type="primary", use_container_width=True):
+            with st.spinner("Đang xử lý dữ liệu..."):
                 s = st.session_state
-                
                 main_data = {
                     "report_no": s.h_report_no,
                     "date_opened": str(s.h_date_opened),
@@ -484,20 +511,23 @@ def render(df_power_tool=None):
                     "master_category": s.d2_master_cat,
                     "product_category": s.d2_prod_cat,
                     "issue_date": str(s.d2_issue_date),
-                    "analysis_report_link": s.get("d4_report_link", "")
+                    "analysis_report_link": s.get("d4_report_link", ""),
+                    "status": s.h_status
                 }
-
                 d1_list = [{"department": s.get(f"d1_dept_{i}"), "pic_name": s.get(f"d1_pic_{i}"), "role": s.get(f"d1_role_{i}")} for i in range(s.d1_row_count)]
                 d3_list = [{"action_code": s.get(f"d3_code_{i}"), "action_desc": s.get(f"d3_action_{i}"), "owner": s.get(f"d3_owner_{i}"), "due_date": str(s.get(f"d3_date_{i}")), "status": s.get(f"d3_status_{i}"), "justification": s.get(f"d3_justification_{i}", "")} for i in range(s.d3_row_count)]
                 d4_list = [{"root_cause": s.get(f"d4_rc_{i}"), "failure_analysis": s.get(f"d4_analysis_{i}"), "issue_part": s.get(f"d4_part_{i}", ""), "supplier": s.get(f"d4_sup_{i}", ""), "failure_code": s.get(f"d4_fc_{i}"), "failure_group": s.get(f"d4_fg_{i}"), "failure_mode": s.get(f"d4_mode_{i}", ""), "severity": s.get(f"d4_sev_{i}")} for i in range(s.d4_row_count)]
                 d5_list = [{"action_code": s.get(f"d5_code_{i}"), "action_desc": s.get(f"d5_action_{i}"), "owner": s.get(f"d5_owner_{i}"), "due_date": str(s.get(f"d5_date_{i}")), "status": s.get(f"d5_status_{i}"), "validate_status": s.get(f"d5_val_status_{i}"), "validate_date": str(s.get(f"d5_val_date_{i}")), "justification": s.get(f"d5_justification_{i}", "")} for i in range(s.d5_row_count)]
 
-                success, msg = save_8d_report(main_data, d1_list, d3_list, d4_list, d5_list)
+                if is_edit_mode:
+                    success, msg = update_8d_report(s.edit_issue_id, main_data, d1_list, d3_list, d4_list, d5_list)
+                else:
+                    success, msg = save_8d_report(main_data, d1_list, d3_list, d4_list, d5_list)
                 
                 if success:
-                    st.success(f"✅ Đã lưu thành công báo cáo 8D! (Supabase ID: {msg})")
-                    # Tự động quay về màn hình danh sách sau khi lưu
+                    st.success(f"✅ Đã xử lý thành công! (Supabase ID: {msg})")
+                    clear_form_state()
                     st.session_state.mqa_view_mode = "list"
                     st.rerun()
                 else:
-                    st.error(f"❌ Lỗi khi lưu báo cáo: {msg}")
+                    st.error(f"❌ Lỗi khi xử lý báo cáo: {msg}")

@@ -89,9 +89,9 @@ def render(df_shared=None):
 
     # Bảng Prefix setup
     if not df_prefix_raw.empty and "prefix" in df_prefix_raw.columns and "mapped" in df_prefix_raw.columns:
-        df_prefix = df_prefix_raw[["prefix", "mapped"]].rename(columns={"prefix": "3 số đầu (Prefix)", "mapped": "Mã đổi (Mapped)"})
+        df_prefix = df_prefix_raw[["prefix", "mapped"]].rename(columns={"prefix": "Prefix (3 digits)", "mapped": "Mapped Code"})
     else:
-        df_prefix = pd.DataFrame([["011", "A1"]], columns=["3 số đầu (Prefix)", "Mã đổi (Mapped)"])
+        df_prefix = pd.DataFrame([["011", "A1"]], columns=["Prefix (3 digits)", "Mapped Code"])
 
     # Tự động nạp dữ liệu Power Tool Gap nếu chưa có
     #if "df_master" not in st.session_state or st.session_state.df_master.empty:
@@ -140,25 +140,19 @@ def render(df_shared=None):
     # ================= 2. MODAL GAP & REQUEST =================
     @st.dialog("Create Request from Shortage Models", width="large")
     def modal_gap_request():
-        pending_sums = {}
-        if not df_st.empty:
-            pending_st = df_st[df_st["Req. status"] != "Closed"]
-            pending_sums = pending_st.groupby("ORT model")["Req. qty"].sum().to_dict()
-            
         gap_options = []
         real_gap_map = {}
         
-        if not df_master.empty and "Gap" in df_master.columns:
+        # --- ĐÃ SỬA LỖI TẠI ĐÂY (Kiểm tra đúng định dạng DataFrame) ---
+        if isinstance(df_master, pd.DataFrame) and not df_master.empty and "Gap" in df_master.columns:
             for _, row in df_master.iterrows():
                 ort = row["ORT model"]
                 master_gap = row["Gap"]
-                pending_qty = pending_sums.get(ort, 0)
-                real_gap = master_gap - pending_qty
-                if real_gap > 0:
+                if master_gap > 0:
                     gap_options.append(ort)
-                    real_gap_map[ort] = real_gap
+                    real_gap_map[ort] = master_gap
 
-        if not df_master_battery.empty and "Action required" in df_master_battery.columns:
+        if isinstance(df_master_battery, pd.DataFrame) and not df_master_battery.empty and "Action required" in df_master_battery.columns:
             for _, row in df_master_battery.iterrows():
                 ort = row["ORT model"]
                 if row["Action required"] == "Request Sample":
@@ -174,24 +168,20 @@ def render(df_shared=None):
         if selected_ort:
             is_battery = selected_ort.startswith("130") and len(selected_ort) == 9
             
-            # ========================================================
-            # 1. KIỂM TRA TRẠNG THÁI SUSPENDED TỪ DATABASE
             is_suspended = False
-            if not df_master_tool.empty and "is_suspended" in df_master_tool.columns:
+            if isinstance(df_master_tool, pd.DataFrame) and not df_master_tool.empty and "is_suspended" in df_master_tool.columns:
                 match = df_master_tool[df_master_tool["ort_model"] == selected_ort]
                 if not match.empty:
                     is_suspended = bool(match["is_suspended"].fillna(False).values[0])
 
-            # 2. HIỂN THỊ CẢNH BÁO NẾU MODEL ĐÃ NGƯNG HOẠT ĐỘNG
             if is_suspended:
                 st.error(f"🛑 **CẢNH BÁO:** Model **{selected_ort}** đã được đưa vào diện **Suspended** (Ngưng sản xuất). Bạn không thể tạo Request mới!")
-            # ========================================================
 
             if is_battery:
                 st.info("💡 **Category: 🔋 Battery** | Sample Quantity: **Flexible entry per technical document**")
             else:
-                current_real_gap = real_gap_map[selected_ort]
-                st.info(f"💡 **Category: 🛠️ Power Tool** | Remaining Gap (minus active tests): **{int(current_real_gap)}**")
+                current_gap = real_gap_map[selected_ort]
+                st.info(f"💡 **Category: 🛠️ Power Tool** | Current Gap: **{int(current_gap)}**")
             
             st.divider()
             req_id = f"REQ-{len(df_st) + 1:04d}"
@@ -221,16 +211,12 @@ def render(df_shared=None):
             if is_battery:
                 req_qty = st.number_input("Req. qty", min_value=1, step=1)
             else:
-                # Chặn lỗi max_value = 0 nếu Real Gap bị âm/bằng 0 (Edge case protection)
-                safe_max = int(current_real_gap) if int(current_real_gap) > 0 else 1
-                req_qty = st.number_input("Req. qty", min_value=1, max_value=safe_max, step=1)
+                safe_max = int(current_gap) if int(current_gap) > 0 else 1
+                req_qty = st.number_input("Req. qty", min_value=1, value=safe_max, step=1)
             
-            # ========================================================
-            # 3. KHÓA NÚT SAVE NẾU BỊ SUSPENDED HOẶC SAI TTI
             disable_save = (ort_converted != selected_ort) or is_suspended
             
             if st.button("Save Request", disabled=disable_save, type="primary"):
-            # ========================================================
                 new_row = {
                     "req_id": req_id,
                     "req_date": str(req_date),
@@ -506,5 +492,10 @@ def render(df_shared=None):
     selected_rows = event.selection.get("rows", [])
     if selected_rows:
         idx = selected_rows[0]
-        selected_req_id = df_show.iloc[idx]["Req. id"]
-        modal_edit_request(selected_req_id)
+        # KIỂM TRA AN TOÀN: Đảm bảo index được chọn không vượt quá số dòng hiện tại của df_show
+        if idx < len(df_show):
+            selected_req_id = df_show.iloc[idx]["Req. id"]
+            modal_edit_request(selected_req_id)
+        else:
+            # Nếu vượt quá, tự động làm mới trạng thái chọn để tránh sập app
+            st.rerun()

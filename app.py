@@ -18,6 +18,7 @@ try:
     settings_page = importlib.import_module("views.5_Setting")
     email_page = importlib.import_module("views.6_Email_Center") # Thêm dòng này
     mqa_record_page = importlib.import_module("views.7_MQA_Record_Issue")
+    action_tracker_page = importlib.import_module("views.8_Action_Tracker")
     # Các trang khác bạn có thể thêm dần...
 except ImportError as e:
     st.error(f"Lỗi load module giao diện: {e}")
@@ -185,22 +186,58 @@ user_name = st.session_state.user_info.get("full_name", "User")
 
 load_sidebar_logo()
 
-with st.sidebar:
-    # ================= MAIN MENU (ĐƯA LÊN TRÊN) =================
-    st.markdown("<h3 style='font-size: 15px; margin-bottom: -10px; color: #ffffff;'>ORT SECTION</h3>", unsafe_allow_html=True)
-    
-    if user_role == "admin":
-        menu_options = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T", "📝 RI", "📧 Email Center", "⚙️ Setting"]
-    elif user_role == "user":
-        menu_options = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T", "📝 RI"]
-    else:
-        menu_options = ["📊 Dashboard"]
+# --- HÀM ĐỒNG BỘ TRẠNG THÁI MENU CHIA SECTION ---
+if "active_page" not in st.session_state:
+    st.session_state.active_page = "📊 Dashboard"
 
-    selected_page = st.radio(
-        "Navigation:",
-        menu_options,
+def update_ort_menu():
+    st.session_state.active_page = st.session_state.ort_menu_radio
+
+def update_mqa_menu():
+    st.session_state.active_page = st.session_state.mqa_menu_radio
+
+with st.sidebar:
+    # ================= MAIN MENU (CHIA SECTION) =================
+    # Phân loại danh sách trang theo Role và Section
+    if user_role == "admin":
+        ort_pages = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T", "📧 Email Center", "⚙️ Setting"]
+        mqa_pages = ["📝 RI", "🎯 Action Tracker"]
+    elif user_role == "user":
+        ort_pages = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T"]
+        mqa_pages = []
+    else:
+        ort_pages = ["📊 Dashboard"]
+        mqa_pages = []
+
+    # --- KHU VỰC 1: ORT SECTION ---
+    st.markdown("<p style='font-weight: 800; color: white; margin-bottom: 5px; font-size: 10px;'>ORT SECTION</p>", unsafe_allow_html=True)
+    ort_idx = ort_pages.index(st.session_state.active_page) if st.session_state.active_page in ort_pages else None
+    
+    st.radio(
+        "ORT_HIDDEN", 
+        ort_pages, 
+        index=ort_idx, 
+        key="ort_menu_radio", 
+        on_change=update_ort_menu, 
         label_visibility="collapsed"
     )
+
+    # --- KHU VỰC 2: MQA SECTION ---
+    if mqa_pages: # Chỉ hiển thị khu vực này nếu người dùng có quyền (có trang trong danh sách)
+        st.markdown("<p style='font-weight: 800; color: white; margin-bottom: 5px; margin-top: 15px; font-size: 10px;'>MQA SECTION</p>", unsafe_allow_html=True)
+        mqa_idx = mqa_pages.index(st.session_state.active_page) if st.session_state.active_page in mqa_pages else None
+        
+        st.radio(
+            "MQA_HIDDEN", 
+            mqa_pages, 
+            index=mqa_idx, 
+            key="mqa_menu_radio", 
+            on_change=update_mqa_menu, 
+            label_visibility="collapsed"
+        )
+
+    # Chốt lại biến selected_page để truyền xuống các tính năng bên dưới (Khóa app, render trang)
+    selected_page = st.session_state.active_page
 
     st.divider()
 
@@ -305,6 +342,8 @@ elif selected_page == "⚙️ Setting":
     settings_page.render(df_power_tool)
 elif selected_page == "📧 Email Center":
     email_page.render(df_power_tool)
+elif selected_page == "🎯 Action Tracker":  # Thêm luồng này
+    action_tracker_page.render(df_power_tool)
 elif selected_page == "📝 RI":    # Thêm luồng này
     mqa_record_page.render(df_power_tool)
 else:

@@ -86,9 +86,21 @@ def render(df_shared=None):
                     "rec_date": str(rec_date),
                     "rec_qty": int(rec_qty)
                 }
-                add_report_qty([new_record])
-                st.success("✅ Production report successfully saved to Cloud Database!")
-                st.rerun()
+                
+                # Bọc trong Try-Except để bắt lỗi Database một cách duyên dáng
+                try:
+                    add_report_qty([new_record])
+                    st.success("✅ Production report successfully saved to Cloud Database!")
+                    st.rerun()
+                except Exception as e:
+                    error_msg = str(e)
+                    # Bắt lỗi Foreign Key khi ORT Model chưa có trong Master Models
+                    if "violates foreign key constraint" in error_msg:
+                        st.error(f"❌ **Save Failed:** The ORT Model '**{auto_ort}**' is not registered in the Master Models list. Please add it to the Master Data first.")
+                    else:
+                        # Bắt các lỗi hệ thống khác
+                        st.error(f"❌ **System Error:** {error_msg}")
+                        
             else:
                 st.error("⚠️ Please enter a valid TTI model so the system can automatically resolve the ORT model.")
 
