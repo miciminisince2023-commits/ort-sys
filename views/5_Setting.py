@@ -116,7 +116,9 @@ def render(df_shared=None):
     render_dropdown_section("Category", "category")
     st.divider()
     render_dropdown_section("P.I.C", "pic")
-
+    st.divider()
+    # --- THÊM ĐOẠN NÀY CHO REGION ---
+    render_dropdown_section("Region", "region")
     st.divider()
 
     # ================= 3. SAMPLE REQUIREMENTS RULES =================

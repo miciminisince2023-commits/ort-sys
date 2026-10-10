@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from database.db_helper import save_8d_report, update_8d_report, get_mqa_list, get_8d_report_by_id, generate_ncr_no
+from database.db_helper import save_8d_report, update_8d_report, get_mqa_list, get_8d_report_by_id, generate_ncr_no, get_setting_dropdowns
 import textwrap
 import streamlit.components.v1 as components
 
@@ -94,11 +94,42 @@ def render(df_power_tool=None):
     if "mqa_view_mode" not in st.session_state:
         st.session_state.mqa_view_mode = "list"
 
+    # --- THÊM 2 DÒNG NÀY ĐỂ QUẢN LÝ PHÂN TRANG ---
+    if "mqa_page_size" not in st.session_state:
+        st.session_state.mqa_page_size = 10
+    if "mqa_current_page" not in st.session_state:
+        st.session_state.mqa_current_page = 1
+
     # =========================================================
     # CHẾ ĐỘ 1: MÀN HÌNH DANH SÁCH (TRACKING LIST)
     # =========================================================
     if st.session_state.mqa_view_mode == "list":
-        st.markdown("<h2 style='color: #EBE600;'>📊 MQA TRACKING LIST</h2>", unsafe_allow_html=True)
+        st.markdown("""
+<style>
+.module-header-wrapper {
+    filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.2));
+    margin-bottom: 25px;
+    margin-top: 30px;
+}
+
+.module-header {
+    background-color: #EBE600;
+    color: #000000;
+    padding: 15px 25px;
+    font-size: 35px;
+    font-weight: 800;
+    clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px); 
+    text-transform: uppercase;
+}
+</style>
+<div class="module-header-wrapper">
+    <div class="module-header">
+    <h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px;'>
+            👽 T R A C K I N G - L I S T 👽
+</h2></div>
+</div>
+""", unsafe_allow_html=True)
+
         col_title, col_btn = st.columns([8, 2])
         with col_title:
             st.markdown("<p style='color: gray;'>Giám sát và quản lý toàn bộ hệ thống sự cố chất lượng</p>", unsafe_allow_html=True)
@@ -154,12 +185,160 @@ def render(df_power_tool=None):
             df_display.insert(0, "View", "👁️")
             df_display.insert(1, "No.", range(1, len(df_display) + 1))
 
-            event = st.dataframe(df_display, use_container_width=True, hide_index=True, selection_mode="single-row", on_select="rerun", key="mqa_tracking_table")
-            selected_rows = event.selection.get("rows", [])
-            if selected_rows:
-                idx = selected_rows[0]
-                selected_issue_id = df_raw.iloc[idx]["id"] 
-                show_a4_popup(selected_issue_id)
+            if df_display.empty:
+                st.info("Không có dữ liệu phù hợp với bộ lọc.")
+            else:
+                # 1. TÍNH TOÁN LOGIC PHÂN TRANG
+                total_rows = len(df_display)
+                total_pages = (total_rows - 1) // st.session_state.mqa_page_size + 1
+                
+                if st.session_state.mqa_current_page > total_pages: st.session_state.mqa_current_page = total_pages
+                if st.session_state.mqa_current_page < 1: st.session_state.mqa_current_page = 1
+                    
+                start_idx = (st.session_state.mqa_current_page - 1) * st.session_state.mqa_page_size
+                end_idx = start_idx + st.session_state.mqa_page_size
+                df_paged = df_display.iloc[start_idx:end_idx]
+
+                # =======================================================
+                # 2. THANH CÔNG CỤ XEM BÁO CÁO (Dropdown + Button)
+                # =======================================================
+                st.markdown("<br>", unsafe_allow_html=True)
+                col_tot, col_sel, col_btn = st.columns([2, 6, 2])
+                with col_tot:
+                    st.markdown(f"<div style='margin-top: 5px; font-weight: bold; font-size: 16px;'>Total records: <span style='background-color: #EBE600; padding: 2px 8px; border-radius: 4px; color: black;'>{total_rows}</span></div>", unsafe_allow_html=True)
+                with col_sel:
+                    # Lấy danh sách ID và Report No để chọn
+                    report_list = df_display["Report No."].tolist()
+                    selected_report = st.selectbox("Select Report", report_list, label_visibility="collapsed")
+                with col_btn:
+                    if st.button("👁️ View This Report", type="primary", use_container_width=True):
+                        # Lấy issue_id gốc từ bảng raw dựa trên Report No được chọn
+                        match_row = df_raw[df_raw["report_no"] == selected_report]
+                        if not match_row.empty:
+                            issue_id = match_row.iloc[0]["id"]
+                            show_a4_popup(issue_id)
+
+                # =======================================================
+                # 3. DỰNG BẢNG HTML/CSS THUẦN CHUẨN DESIGN (CÓ VIỀN MỎNG)
+                # =======================================================
+                html_table = """
+                <style>
+                /* LỚP 1: Bọc ngoài tạo viền đen */
+                .mqa-border-box {
+                    width: 100%;
+                    background-color: #000000; /* Màu viền */
+                    padding: 1px; /* ĐỘ MỎNG CỦA VIỀN (1px) */
+                    clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+                    margin-bottom: 15px;
+                    margin-top: 5px;
+                }
+                /* LỚP 2: Bọc trong chứa nền trắng và thanh cuộn */
+                .mqa-inner-box {
+                    width: 100%;
+                    background-color: white;
+                    overflow-x: auto; 
+                    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+                }
+                .mqa-custom-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 13px;
+                    text-align: center;
+                    background-color: white;
+                    white-space: nowrap; /* Chống rớt dòng, ép cuộn ngang */
+                }
+                .mqa-custom-table th {
+                    background-color: #000000;
+                    color: white;
+                    padding: 12px 15px;
+                    border: 1px solid #333;
+                    font-weight: 900;
+                }
+                .mqa-custom-table td {
+                    padding: 10px 15px;
+                    border: 1px solid #ddd;
+                    color: #333;
+                }
+                /* Màu sắc theo Severity */
+                .sev-critical { background-color: #cc0000 !important; color: white !important; font-weight: bold; }
+                .sev-major { background-color: #ffaa00 !important; color: black !important; font-weight: bold; }
+                .sev-minor { background-color: #f0f0f0 !important; color: black !important; }
+                .duration-alert { color: red !important; font-weight: bold; }
+                </style>
+                <div class="mqa-border-box">
+                    <div class="mqa-inner-box">
+                        <table class="mqa-custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Report No.</th><th>Date opened</th><th>Leader (MQA)</th>
+                                    <th>Issue desc.</th><th>Mfg source</th><th>Sensor</th>
+                                    <th>Line</th><th>Shift</th><th>Issue date</th>
+                                    <th>TTI Model</th><th>Customer Model</th><th>Master category</th>
+                                    <th>Root cause</th><th>Severity</th><th>Open duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                """
+                
+                # Render từng dòng dữ liệu (Viết liền không thụt lề để tránh lỗi Markdown Parser)
+                for _, row in df_paged.iterrows():
+                    sev = str(row['Severity'])
+                    if sev == "Critical": sev_class = "sev-critical"
+                    elif sev == "Major": sev_class = "sev-major"
+                    else: sev_class = "sev-minor"
+                    
+                    duration = row['Open duration']
+                    dur_class = "duration-alert" if isinstance(duration, (int, float)) and duration > 14 else ""
+                    
+                    html_table += "<tr>"
+                    html_table += f"<td style='font-weight: bold;'>{row['Report No.']}</td>"
+                    html_table += f"<td>{row['Date opened']}</td><td>{row['Leader: (MQA)']}</td>"
+                    html_table += f"<td>{row['Issue desc.']}</td><td>{row['Mfg source']}</td>"
+                    html_table += f"<td>{row['Sensor']}</td><td>{row['Line']}</td>"
+                    html_table += f"<td>{row['Shift']}</td><td>{row['Issue date']}</td>"
+                    html_table += f"<td>{row['TTI Model']}</td><td>{row['Customer Model']}</td>"
+                    html_table += f"<td>{row['Master category']}</td><td>{row['Root cause']}</td>"
+                    html_table += f"<td class='{sev_class}'>{sev}</td>"
+                    html_table += f"<td class='{dur_class}'>{duration}</td>"
+                    html_table += "</tr>"
+                
+                # Đóng cả 2 thẻ div
+                html_table += "</tbody></table></div></div>"
+                
+                try:
+                    st.html(html_table)
+                except AttributeError:
+                    st.write(html_table, unsafe_allow_html=True)
+
+                # =======================================================
+                # 4. THANH CÔNG CỤ PHÂN TRANG (Controls)
+                # =======================================================
+                c_limit, c_first, c_prev, c_info, c_next, c_last = st.columns([2, 1.5, 1.5, 4, 1.5, 1.5])
+                
+                with c_limit:
+                    new_size = st.selectbox("Rows", options=[10, 20, 30, 40], index=[10, 20, 30, 40].index(st.session_state.mqa_page_size), label_visibility="collapsed")
+                    if new_size != st.session_state.mqa_page_size:
+                        st.session_state.mqa_page_size = new_size
+                        st.session_state.mqa_current_page = 1
+                        st.rerun()
+                with c_first:
+                    if st.button("⏮️ First", disabled=(st.session_state.mqa_current_page == 1), use_container_width=True):
+                        st.session_state.mqa_current_page = 1
+                        st.rerun()
+                with c_prev:
+                    if st.button("◀ Prev", disabled=(st.session_state.mqa_current_page == 1), use_container_width=True):
+                        st.session_state.mqa_current_page -= 1
+                        st.rerun()
+                with c_info:
+                    st.markdown(f"<div style='text-align: center; margin-top: 5px; font-weight: 900;'>Page {st.session_state.mqa_current_page} of {total_pages}</div>", unsafe_allow_html=True)
+                with c_next:
+                    if st.button("Next ▶", disabled=(st.session_state.mqa_current_page == total_pages), use_container_width=True):
+                        st.session_state.mqa_current_page += 1
+                        st.rerun()
+                with c_last:
+                    if st.button("Last ⏭️", disabled=(st.session_state.mqa_current_page == total_pages), use_container_width=True):
+                        st.session_state.mqa_current_page = total_pages
+                        st.rerun()
                 
     # =========================================================
     # CHẾ ĐỘ 2: MÀN HÌNH NHẬP LIỆU (RECORD ISSUE FORM)
@@ -254,13 +433,13 @@ def render(df_power_tool=None):
         .module-header { background-color: #EBE600; color: #000000; padding: 15px 25px; font-size: 35px; font-weight: 800; clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px); text-transform: uppercase; }
         </style>
         <div class="module-header-wrapper"><div class="module-header">
-        <h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px; margin: 0;'>⚡ RECORD ISSUE</h2>
+        <h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px; margin: 0;'>👽 R E C O R D - I S S U E 👽</h2>
         </div></div>
         """, unsafe_allow_html=True)
         st.divider()
 
         # --- 1. HEADER ---
-        with st.expander("⚡️ HEADER: GENERAL INFORMATION", expanded=True):
+        with st.expander("🎃 HEADER: GENERAL INFORMATION 🎃", expanded=True):
             # Chia làm 3 cột để nhét thêm Status
             col1, col2, col3 = st.columns([1.5, 1.5, 1])
             with col1:
@@ -280,7 +459,7 @@ def render(df_power_tool=None):
                 st.selectbox("Status", ["Open", "In Progress", "Closed", "Cancelled"], key="h_status")
 
         # --- 2. D1: FTT ---
-        with st.expander("⚡️ D1: FTT (Form The Team)", expanded=True):
+        with st.expander("🦇 D1: FTT (Form The Team) 🦇", expanded=True):
             st.markdown("**Team Members:**")
             
             if "d1_row_count" not in st.session_state:
@@ -293,7 +472,13 @@ def render(df_power_tool=None):
                 
             dept_list = ["IPQC", "OQC", "MQA", "PE", "ME", "SQE", "PDN", "APE", "QE", "NPI", "PC", "MC", "MPS", "MPM"]
             role_list = ["Leader", "Member", "Observer"]
-            pic_list = ["Unassigned", "Richard", "John Doe", "Jane Smith"]
+            
+            # --- ĐOẠN CODE LẤY PIC_LIST TỪ DATABASE ---
+            df_pic = get_setting_dropdowns("pic")
+            if not df_pic.empty:
+                pic_list = ["Unassigned"] + df_pic["value"].tolist()
+            else:
+                pic_list = ["Unassigned"]
 
             st.markdown('<div class="d1-static-table">', unsafe_allow_html=True)
             h_col1, h_col2, h_col3 = st.columns([1.5, 2.5, 1.5])
@@ -320,14 +505,23 @@ def render(df_power_tool=None):
                     st.rerun()
 
         # --- 3. D2: DTP ---
-        with st.expander("⚡️ D2: DTP (Define The Problem)", expanded=True):
+        with st.expander("⚰️ D2: DTP (Define The Problem) ⚰️", expanded=True):
             st.markdown("**Problem Definition:**")
             st.text_area("Issue Description", placeholder="Enter the issue description...", height=100, key="d2_desc")
             st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px;'>", unsafe_allow_html=True)
             
+            # --- LẤY DANH SÁCH REGION TỪ DATABASE ---
+            df_region = get_setting_dropdowns("region")
+            if not df_region.empty:
+                region_list = df_region["value"].tolist()
+            else:
+                region_list = ["Unassigned"] # Giá trị mặc định nếu Database chưa có gì
+            # ----------------------------------------
+
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.selectbox("Region", ["Region 1", "Region 2", "Region 3"], key="d2_region")
+                # Thay thế danh sách cứng bằng biến region_list
+                st.selectbox("Region", region_list, key="d2_region")
                 st.selectbox("Mfg Source", ["Source A", "Source B", "Source C"], key="d2_source")
                 st.selectbox("Sensor", ["Sensor 1", "Sensor 2", "None"], key="d2_sensor")
                 st.selectbox("Line", ["Line 1", "Line 2", "Line 3", "Line 4"], key="d2_line")
@@ -349,7 +543,7 @@ def render(df_power_tool=None):
                 st.selectbox("Brand", ["RYOBI", "Milwaukee", "RIDGID", "Hoover"], key="d2_brand")
 
         # --- 4. D3: ICR ---
-        with st.expander("⚡️ D3: Interim Containment Actions", expanded=True):
+        with st.expander("🌚 D3: Interim Containment Actions 🌚", expanded=True):
             if "d3_row_count" not in st.session_state: st.session_state.d3_row_count = 1
             owner_list = ["Unassigned", "Richard", "John Doe", "Jane Smith"]
             status_list = ["Open", "In Progress", "Closed", "Cancelled"]
@@ -391,7 +585,7 @@ def render(df_power_tool=None):
                     st.rerun()
 
         # --- 5. D4: RCA ---
-        with st.expander("⚡️ D4: Root Cause Analysis", expanded=True):
+        with st.expander("🪄 D4: Root Cause Analysis 🪄", expanded=True):
             if "d4_row_count" not in st.session_state: st.session_state.d4_row_count = 1
             rc_list = ["Man", "Machine", "Material", "Method", "Measurement", "Environment"]
             fc_list = ["FC-001", "FC-002", "FC-003"]
@@ -438,7 +632,7 @@ def render(df_power_tool=None):
             st.text_input("Analysis Report (Link)", placeholder="Paste OneDrive link here...", key="d4_report_link")
 
         # --- 6. D5: PCR & VCA ---
-        with st.expander("⚡️ D5: Permanent Corrective Action & Verification", expanded=True):
+        with st.expander("🌩️ D5: Permanent Corrective Action & Verification 🌩️", expanded=True):
             if "d5_row_count" not in st.session_state: st.session_state.d5_row_count = 1
             owner_list = ["Unassigned", "Richard", "John Doe", "Jane Smith"]
             status_list = ["Open", "In Progress", "Closed", "Cancelled"]
@@ -489,7 +683,7 @@ def render(df_power_tool=None):
 
         # --- 7. NÚT LƯU BÁO CÁO VÀ GỌI API ---
         st.markdown("<br>", unsafe_allow_html=True)
-        btn_label = "🔄 UPDATE ISSUE REPORT" if is_edit_mode else "💾 SAVE NEW ISSUE REPORT"
+        btn_label = "🔄 UPDATE ISSUE REPORT" if is_edit_mode else "☠️ SAVE NEW ISSUE REPORT ☠️"
         
         if st.button(btn_label, type="primary", use_container_width=True):
             with st.spinner("Đang xử lý dữ liệu..."):

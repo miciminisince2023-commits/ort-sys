@@ -190,11 +190,23 @@ load_sidebar_logo()
 if "active_page" not in st.session_state:
     st.session_state.active_page = "📊 Dashboard"
 
+# Khởi tạo các giá trị radio vào session_state ngay từ đầu
+if "ort_menu_radio" not in st.session_state:
+    st.session_state.ort_menu_radio = "📊 Dashboard"
+if "mqa_menu_radio" not in st.session_state:
+    st.session_state.mqa_menu_radio = None
+
 def update_ort_menu():
-    st.session_state.active_page = st.session_state.ort_menu_radio
+    # Khi click vào mục bên ORT, bỏ chọn bên MQA
+    if st.session_state.ort_menu_radio is not None:
+        st.session_state.active_page = st.session_state.ort_menu_radio
+        st.session_state.mqa_menu_radio = None
 
 def update_mqa_menu():
-    st.session_state.active_page = st.session_state.mqa_menu_radio
+    # Khi click vào mục bên MQA, bỏ chọn bên ORT
+    if st.session_state.mqa_menu_radio is not None:
+        st.session_state.active_page = st.session_state.mqa_menu_radio
+        st.session_state.ort_menu_radio = None
 
 with st.sidebar:
     # ================= MAIN MENU (CHIA SECTION) =================
@@ -211,29 +223,27 @@ with st.sidebar:
 
     # --- KHU VỰC 1: ORT SECTION ---
     st.markdown("<p style='font-weight: 800; color: white; margin-bottom: 5px; font-size: 10px;'>ORT SECTION</p>", unsafe_allow_html=True)
-    ort_idx = ort_pages.index(st.session_state.active_page) if st.session_state.active_page in ort_pages else None
     
     st.radio(
         "ORT_HIDDEN", 
-        ort_pages, 
-        index=ort_idx, 
+        options=ort_pages, 
         key="ort_menu_radio", 
         on_change=update_ort_menu, 
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        index=None  # Tham số cực kỳ quan trọng để cho phép 1 nhóm bị bỏ trống
     )
 
     # --- KHU VỰC 2: MQA SECTION ---
-    if mqa_pages: # Chỉ hiển thị khu vực này nếu người dùng có quyền (có trang trong danh sách)
+    if mqa_pages: 
         st.markdown("<p style='font-weight: 800; color: white; margin-bottom: 5px; margin-top: 15px; font-size: 10px;'>MQA SECTION</p>", unsafe_allow_html=True)
-        mqa_idx = mqa_pages.index(st.session_state.active_page) if st.session_state.active_page in mqa_pages else None
         
         st.radio(
             "MQA_HIDDEN", 
-            mqa_pages, 
-            index=mqa_idx, 
+            options=mqa_pages, 
             key="mqa_menu_radio", 
             on_change=update_mqa_menu, 
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            index=None  # Tham số cực kỳ quan trọng để cho phép 1 nhóm bị bỏ trống
         )
 
     # Chốt lại biến selected_page để truyền xuống các tính năng bên dưới (Khóa app, render trang)
