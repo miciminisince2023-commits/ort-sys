@@ -5,9 +5,13 @@ from database.db_helper import get_st_requests, add_st_request, get_master_model
 from logic.sku_converter import convert_tti_to_ort
 from supabase import create_client
 from database.db_helper import get_processed_power_tool_data
+from database.ui_helper import show_loader, hide_loader, render_global_marquee, set_goku_background
 
 
 def render(df_shared=None):
+    run_id = show_loader(sub_text="Loading Sampling & Testing Data...")
+    set_goku_background()
+    render_global_marquee()
     # Khởi tạo Supabase client cho các thao tác cập nhật trực tiếp
     @st.cache_resource
     def init_supabase():
@@ -23,25 +27,22 @@ def render(df_shared=None):
     /* Tạo khung bóng đổ xám nhạt ôm sát hình dạng vát góc */
     filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.2));
     margin-bottom: 25px;
-    margin-top: 30px;
 }
 
 .module-header {
-    background-color: #EBE600;
-    color: #000000;
+    background-color: #000000;
+    color: #FFFFFF;
     padding: 15px 25px;
     font-size: 35px;
     font-weight: 800;
     /* Kiểu vát 2 góc đối diện */
-    clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px); 
-    
     text-transform: uppercase;
 }
 </style>
 <div class="module-header-wrapper">
     <div class="module-header">
-    <h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px;'>
-            🧪 SAMPLING & TESTING
+    <h2 style='text-align: center; color: #FFFFFF; background-color: #000000; padding: 5px;'>
+            SAMPLING & TESTING
 </h2></div>
 </div>
 """, unsafe_allow_html=True)
@@ -501,3 +502,5 @@ def render(df_shared=None):
         else:
             # Nếu vượt quá, tự động làm mới trạng thái chọn để tránh sập app
             st.rerun()
+
+    hide_loader(run_id=run_id)

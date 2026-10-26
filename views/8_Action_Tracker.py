@@ -3,6 +3,7 @@ import pandas as pd
 import math
 from database.db_helper import get_all_actions, get_8d_report_by_id
 import streamlit.components.v1 as components
+from database.ui_helper import show_loader, hide_loader, set_goku_background
 
 # =========================================================
 # HÀM RESET TRANG KHI ĐỔI BỘ LỌC
@@ -112,13 +113,15 @@ def highlight_action_status_html(row):
 # GIAO DIỆN CHÍNH
 # =========================================================
 def render(df_power_tool=None):
+    run_id = show_loader(sub_text="Loading Action Tracker...")
+    set_goku_background()
     if "at_page" not in st.session_state:
         st.session_state.at_page = 1
 
     st.markdown("""
     <style>
     .module-header-wrapper { filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.2)); margin-bottom: 25px; margin-top: 10px; }
-    .module-header { background-color: #EBE600; color: #000000; padding: 15px 25px; font-size: 35px; font-weight: 800; clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px); text-transform: uppercase; }
+    .module-header { background-color: #000000; color: #FFFFFF; padding: 15px 25px; font-size: 35px; font-weight: 800; text-transform: uppercase; }
     
     .table-shadow-wrapper {
         filter: drop-shadow(-1px 0px 0px #000) 
@@ -129,7 +132,7 @@ def render(df_power_tool=None):
     }
     
     .custom-table-container {
-        clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px);
+        
         background-color: white;
         overflow-x: auto;
         width: 100%;
@@ -142,9 +145,8 @@ def render(df_power_tool=None):
     </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("<div class='module-header-wrapper'><div class='module-header'><h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px; margin: 0;'>🎯 ACTION TRACKER</h2></div></div>", unsafe_allow_html=True)
+    st.markdown("<div class='module-header-wrapper'><div class='module-header'><h2 style='text-align: center; color: #FFFFFF; background-color: #000000; padding: 0px; margin: 0;'>A C T I O N - T R A C K E R</h2></div></div>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: gray;'>Track and manage the progress of all corrective actions (ICA & PCA)</p>", unsafe_allow_html=True)
-    st.divider()
 
     actions_list = get_all_actions()
 
@@ -256,3 +258,5 @@ def render(df_power_tool=None):
             if st.button("Last ⏭", use_container_width=True, disabled=(current_page == total_pages)):
                 st.session_state.at_page = total_pages
                 st.rerun()
+
+    hide_loader(run_id=run_id)

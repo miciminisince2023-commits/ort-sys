@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 from database.db_helper import authenticate_user, get_processed_power_tool_data
-from database.ui_helper import load_custom_css, load_sidebar_logo
+from database.ui_helper import load_custom_css, load_sidebar_logo, show_loader, hide_loader, set_goku_background
 from datetime import datetime, time
+import os
+import base64
 
 # ================= 1. IMPORT CÁC TRANG (THEO DẠNG HÀM) =================
 # Đây là sự thay đổi quan trọng nhất. Thay vì st.Page, ta import như một thư viện nội bộ
@@ -19,13 +21,14 @@ try:
     email_page = importlib.import_module("views.6_Email_Center") # Thêm dòng này
     mqa_record_page = importlib.import_module("views.7_MQA_Record_Issue")
     action_tracker_page = importlib.import_module("views.8_Action_Tracker")
+    handbook_page = importlib.import_module("views.9_Handbook")
     # Các trang khác bạn có thể thêm dần...
 except ImportError as e:
     st.error(f"Lỗi load module giao diện: {e}")
     st.stop()
 
 st.set_page_config(
-    page_title="ORT System",
+    page_title="Goku System",
     page_icon="assets/logo_icon.png",
     layout="wide"
 )
@@ -47,127 +50,133 @@ if "logged_in" not in st.session_state:
 if "user_info" not in st.session_state:
     st.session_state.user_info = None
 
-# ================= 3. MÀN HÌNH ĐĂNG NHẬP =================
-def show_login_screen():
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align: center;'>🔐 System Authentication</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray;'>Please log in to access the ORT System.</p>", unsafe_allow_html=True)
+# ================= 3. MÀN HÌNH ĐĂNG NHẬP (ULTRA INSTINCT - KAMEHAMEHA EDITION) =================
+
+def set_login_background():
+    # 💡 LƯU Ý NHỎ: Bạn kiểm tra kỹ lại xem tên file là ryobi.jpeg hay ryobi.jpg nhé
+    bg_path = "assets/ryobi.jpeg" 
+    
+    if os.path.exists(bg_path):
+        import base64
+        with open(bg_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+            
+        st.markdown(f"""
+        <style>
+        /* 1. CHIA ĐÔI MÀN HÌNH: NỬA TRÁI LÀ ẢNH, NỬA PHẢI LÀ NỀN TRƠN */
         
-        with st.form("login_form"):
+        /* Gán màu nền xanh đen cho toàn bộ trang */
+        [data-testid="stAppViewContainer"] {{
+            background-color: #FFFFFF !important; 
+        }}
+        
+        /* Tạo lớp ảnh ảo chiếm 50% bên trái */
+        [data-testid="stAppViewContainer"]::before {{
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 40vw; /* Chiếm chính xác 50% chiều ngang màn hình */
+            height: 100vh; /* Chiếm 100% chiều dọc */
+            background-image: url("data:image/jpeg;base64,{encoded_string}");
+            background-size: cover; /* Không làm méo ảnh */
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 0; /* ĐƯA LÊN LỚP 0 ĐỂ KHÔNG BỊ NỀN ĐEN CHE KHUẤT */
+            border-right: 2px solid rgba(0, 242, 254, 0.3); 
+        }}
+        
+        /* Đảm bảo Form đăng nhập nổi lên trên cùng */
+        .block-container {{
+            z-index: 1 !important;
+            position: relative;
+        }}
+        
+        /* 2. ẨN SIDEBAR & TOPBAR */
+        [data-testid="stHeader"], [data-testid="stSidebar"] {{ 
+            display: none !important; 
+        }}
+        
+        /* 3. ĐỊNH DẠNG KHUNG FORM (GLASSMORPHISM) */
+        [data-testid="stForm"] {{
+            background: #000000 !important; 
+            border-radius: 20px !important;
+            padding: 40px 30px !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important; 
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9) !important;
+            backdrop-filter: blur(10px) !important; 
+            -webkit-backdrop-filter: blur(10px) !important;
+            overflow: visible !important; /* Vô cùng quan trọng để tia sáng có thể bắn ra ngoài Form */
+        }}
+        
+        /* Đảm bảo các khung bao ngoài không cắt xén tia sáng */
+        [data-testid="stVerticalBlock"], 
+        div.element-container {{
+            overflow: visible !important;
+        }}
+        
+        /* 4. ÉP MÀU CHỮ THÀNH TRẮNG */
+        [data-testid="stForm"] p, 
+        [data-testid="stForm"] label,
+        [data-testid="stMarkdownContainer"] h2 {{
+            color: white !important;
+        }}
+        
+        /* 5. TÙY CHỈNH Ô NHẬP LIỆU (INPUTS) */
+        div[data-baseweb="input"] > div {{
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 8px !important;
+        }}
+        div[data-baseweb="input"] input {{
+            color: white !important;
+        }}
+        div[data-baseweb="input"] > div:focus-within {{
+            border-color: #00f2fe !important;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.5) !important;
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }}
+
+        </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.warning("⚠️ Không tìm thấy hình nền Goku tại assets/bg_goku.jpeg")
+
+def show_login_screen():
+    set_login_background()
+    
+    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+    
+    # CHIA CỘT TỶ LỆ 50/50 (Trái 50% - Phải 50%) ĐỂ KHỚP VỚI HÌNH NỀN Ở TRÊN
+    col_left, col_right = st.columns([1, 1])
+    
+    with col_right:
+        # Code của form đăng nhập Goku System...
+        with st.form("login_form", clear_on_submit=True):
+            st.markdown("<h2 style='text-align: center; margin-top: -15px; text-shadow: 0px 4px 10px rgba(0,0,0,0.8);'>THIS IS SYSTEM</h2>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; opacity: 0.8; margin-bottom: 25px;'>Authenticate to unleash power.</p>", unsafe_allow_html=True)
+            
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
-            submit = st.form_submit_button("Sign In", type="primary", use_container_width=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit = st.form_submit_button("SIGN IN")
             
             if submit:
+                # Import hàm xác thực tại đây
+                from database.db_helper import authenticate_user
                 user = authenticate_user(username, password)
+                
                 if user:
                     st.session_state.logged_in = True
-                    st.session_state.user_info = user
-                    st.success(f"✅ Welcome back, {user.get('full_name', username)}!")
-                    st.rerun()
+                    st.session_state.user_info = user if isinstance(user, dict) else {"full_name": username, "role": "admin"}
+                    safe_name = st.session_state.user_info.get('full_name', username)
+                    st.success(f"🔓 Power Unlocked! Welcome, {safe_name}!")
+                    st.rerun() 
                 else:
-                    st.error("❌ Invalid username or password. Please try again.")
-
-        st.markdown("<p style='text-align: center; color: gray;'>🔥 Continuous Improvement • Since 2026 🔥.</p>", unsafe_allow_html=True)
-        
-        st.markdown("""
-        <style>
-        /* 1. KHỐI FOOTER ẨN (Giữ nguyên như cũ) */
-        .secret-footer {
-            opacity: 0;
-            transition: opacity 0.4s ease-in-out;
-            text-align: center;
-            color: gray;
-            padding-top: 100px;
-        }
-        .secret-footer:hover {
-            opacity: 1;
-        }
-        
-        /* Chuyển emoji thành link bấm mượt mà */
-        .secret-footer a.mail-icon {
-            text-decoration: none;
-            cursor: pointer;
-            font-size: 20px;
-            margin-left: 8px;
-        }
-
-        /* 2. KHUNG NỀN TỐI CỦA POPUP (Mặc định ẩn) */
-        .modal-window {
-            position: fixed;
-            background-color: rgba(0, 0, 0, 0.75);
-            top: 0; right: 0; bottom: 0; left: 0;
-            z-index: 99999;
-            visibility: hidden;
-            opacity: 0;
-            transition: all 0.3s;
-        }
-
-        /* KÍCH HOẠT HIỆN POPUP KHI CLICK VÀO EMOJI */
-        .modal-window:target {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        /* 3. HỘP THOẠI CHỨA NỘI DUNG THƯ */
-        .modal-content {
-            width: 450px;
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 2em;
-            background: #1a1a1a; /* Tone nền tối công nghiệp */
-            border: 1px solid #333;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-            text-align: left;
-        }
-
-        /* Nút tắt Popup (dấu X) */
-        .modal-close {
-            color: #aaa;
-            position: absolute;
-            right: 15px;
-            top: 15px;
-            text-decoration: none;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .modal-close:hover {
-            color: #EBE600; /* Vàng thương hiệu */
-        }
-        </style>
-        
-        <!-- HIỂN THỊ DÒNG CHỮ VÀ EMOJI -->
-        <div class="secret-footer">
-            <p style="margin-top: 0px;"> 🎓 Richard's Legacy 🎓 </p>
-            <a href="#secret-mqa-letter" class="mail-icon" title="Đọc thư">📬</a>
-        </div>
-
-        <!-- CẤU TRÚC POPUP CHỨA LÁ THƯ -->
-        <div id="secret-mqa-letter" class="modal-window">
-            <div class="modal-content">
-                <a href="#" title="Đóng" class="modal-close">✖</a>
-                <h3 style="margin-top: 0; color: #EBE600;">A Letter to My Successor</h3>
-                <div style="font-size: 15px; line-height: 1.6; color: #dddddd;">
-                    <p>Dear My Successor,</p>
-                    <p>
-                        This system is the result of four years of experience, failures, lessons learned, and continuous improvement. It was built to solve real problems, not just to manage data.
-                        I hope you will take it further than I ever could. Maintain it, improve it, and never stop looking for better ways to support the team.
-                        We are not always visible, but our work matters.</p>
-                    <p>Stay curious. Keep improving. Be a hidden hero,<br><b>Quality Driven • Since 2026</b></p>
-                    <p> Nếu bạn đang đọc những dòng này, có lẽ hành trình của tôi tại TTi đã khép lại.
-                        Hệ thống này được tạo nên từ bốn năm trải nghiệm thực tế, từ những thành công, thất bại, sai lầm và bài học quý giá trong suốt thời gian tôi phụ trách công việc này. Mỗi chức năng và mỗi cải tiến đều được xây dựng để giải quyết những vấn đề mà chúng ta thực sự gặp phải hằng ngày.
-                        Tôi hy vọng bạn sẽ tiếp tục gìn giữ và phát triển nó, biến nó trở nên tốt hơn từng ngày. Đừng ngần ngại thay đổi, cải tiến và tạo ra những giá trị mới cho đội ngũ.
-                        Có thể chúng ta luôn ở phía sau ánh đèn sân khấu, nhưng những gì chúng ta làm đều để lại dấu ấn.
-                        Hãy luôn học hỏi. Không ngừng cải tiến. Và tiếp tục là những người hùng thầm lặng.</p>
-                    <p>Hãy luôn học hỏi. Không ngừng cải tiến. Và tiếp tục là những người hùng thầm lặng,<br><b>Quality Driven • Since 2026</b></p>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+                    st.error("❌ Invalid credentials. The lock holds strong.")
+                    
+        st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 15px;'>Hover to charge, Click to fire!</p>", unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     show_login_screen()
@@ -195,58 +204,84 @@ if "ort_menu_radio" not in st.session_state:
     st.session_state.ort_menu_radio = "📊 Dashboard"
 if "mqa_menu_radio" not in st.session_state:
     st.session_state.mqa_menu_radio = None
+if "sys_menu_radio" not in st.session_state: 
+    st.session_state.sys_menu_radio = None
 
-def update_ort_menu():
-    # Khi click vào mục bên ORT, bỏ chọn bên MQA
-    if st.session_state.ort_menu_radio is not None:
-        st.session_state.active_page = st.session_state.ort_menu_radio
-        st.session_state.mqa_menu_radio = None
-
-def update_mqa_menu():
-    # Khi click vào mục bên MQA, bỏ chọn bên ORT
-    if st.session_state.mqa_menu_radio is not None:
-        st.session_state.active_page = st.session_state.mqa_menu_radio
-        st.session_state.ort_menu_radio = None
+def sync_sidebar_menus(clicked_section):
+    """
+    Hàm đồng bộ duy nhất: Quét xem người dùng vừa click vào section nào,
+    lấy giá trị đó làm active_page và ép 2 section còn lại về None.
+    """
+    if clicked_section == "ort" and st.session_state.ort_menu is not None:
+        st.session_state.active_page = st.session_state.ort_menu
+        st.session_state.mqa_menu = None
+        st.session_state.sys_menu = None
+        
+    elif clicked_section == "mqa" and st.session_state.mqa_menu is not None:
+        st.session_state.active_page = st.session_state.mqa_menu
+        st.session_state.ort_menu = None
+        st.session_state.sys_menu = None
+        
+    elif clicked_section == "sys" and st.session_state.sys_menu is not None:
+        st.session_state.active_page = st.session_state.sys_menu
+        st.session_state.ort_menu = None
+        st.session_state.mqa_menu = None
 
 with st.sidebar:
     # ================= MAIN MENU (CHIA SECTION) =================
     # Phân loại danh sách trang theo Role và Section
     if user_role == "admin":
-        ort_pages = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T", "📧 Email Center", "⚙️ Setting"]
-        mqa_pages = ["📝 RI", "🎯 Action Tracker"]
+        ort_pages = [" Dashboard", " Power Tools", " Batteries", " Report Qty", " S & T"]
+        mqa_pages = [" Record Issue", " Action Tracker"]
+        sys_pages = [" Handbook", " Email Center", " Setting"]
     elif user_role == "user":
-        ort_pages = ["📊 Dashboard", "🛠️ Power Tools", "🔋 Batteries", "📄 Report Qty", "🧪 S & T"]
+        ort_pages = [" Dashboard", " Power Tools", " Batteries", " Report Qty", " S & T"]
         mqa_pages = []
+        sys_pages = []
     else:
-        ort_pages = ["📊 Dashboard"]
+        ort_pages = [" Dashboard"]
         mqa_pages = []
+        sys_pages = []
 
     # --- KHU VỰC 1: ORT SECTION ---
     st.markdown("<p style='font-weight: 800; color: white; margin-bottom: 5px; font-size: 10px;'>ORT SECTION</p>", unsafe_allow_html=True)
-    
     st.radio(
         "ORT_HIDDEN", 
         options=ort_pages, 
-        key="ort_menu_radio", 
-        on_change=update_ort_menu, 
-        label_visibility="collapsed",
-        index=None  # Tham số cực kỳ quan trọng để cho phép 1 nhóm bị bỏ trống
+        key="ort_menu", 
+        on_change=sync_sidebar_menus, 
+        args=("ort",),           # <--- Truyền tham số để hàm biết đang click ở Section nào
+        label_visibility="collapsed", 
+        index=None
     )
 
     # --- KHU VỰC 2: MQA SECTION ---
     if mqa_pages: 
         st.markdown("<p style='font-weight: 800; color: white; margin-bottom: 5px; margin-top: 15px; font-size: 10px;'>MQA SECTION</p>", unsafe_allow_html=True)
-        
         st.radio(
             "MQA_HIDDEN", 
             options=mqa_pages, 
-            key="mqa_menu_radio", 
-            on_change=update_mqa_menu, 
-            label_visibility="collapsed",
-            index=None  # Tham số cực kỳ quan trọng để cho phép 1 nhóm bị bỏ trống
+            key="mqa_menu", 
+            on_change=sync_sidebar_menus, 
+            args=("mqa",),           # <--- Truyền tham số 
+            label_visibility="collapsed", 
+            index=None
         )
 
-    # Chốt lại biến selected_page để truyền xuống các tính năng bên dưới (Khóa app, render trang)
+    # --- KHU VỰC 3: SYSTEM SECTION ---
+    if sys_pages: 
+        st.markdown("<p style='font-weight: 800; color: white; margin-bottom: 5px; margin-top: 15px; font-size: 10px;'>SYSTEM SECTION</p>", unsafe_allow_html=True)
+        st.radio(
+            "SYS_HIDDEN", 
+            options=sys_pages, 
+            key="sys_menu", 
+            on_change=sync_sidebar_menus, 
+            args=("sys",),           # <--- Truyền tham số 
+            label_visibility="collapsed", 
+            index=None
+        )
+
+    # Chốt biến truyền xuống hệ thống dưới
     selected_page = st.session_state.active_page
 
     st.divider()
@@ -267,7 +302,7 @@ with st.sidebar:
             unsafe_allow_html=True
         )
         
-        if st.button("Sign Out", use_container_width=True, key="sidebar_sign_out"):
+        if st.button("Sign out", use_container_width=True, key="sidebar_sign_out"):
             st.session_state.logged_in = False
             st.session_state.user_info = None
             st.rerun()
@@ -314,7 +349,7 @@ with st.sidebar:
         background-color: #cc0000 !important; 
         color: #ffffff !important;
     }
-    
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -332,29 +367,31 @@ if user_role == "admin":
     
     # 3. Kích hoạt khóa
     if current_time > deadline_time and not has_sent_today:
-        if selected_page != "📧 Email Center":
+        if selected_page != " Email Center":
             st.error("🚨 **HỆ THỐNG ĐÃ BỊ KHÓA TẠM THỜI!**")
-            st.warning("Bạn chưa gửi báo cáo **VN ORT daily alert** sáng nay. Vui lòng chọn mục **📧 Email Center** ở thanh Menu bên trái để thực hiện tác vụ và mở khóa hệ thống.")
+            st.warning("Bạn chưa gửi báo cáo **VN ORT daily alert** sáng nay. Vui lòng chọn mục ** Email Center** ở thanh Menu bên trái để thực hiện tác vụ và mở khóa hệ thống.")
             st.stop() # Chặn đứng mọi xử lý bên dưới
 
 # ================= 6. KHÔNG GIAN LÀM VIỆC CHÍNH (MAIN AREA) =================
-if selected_page == "📊 Dashboard":
+if selected_page == " Dashboard":
     dashboard_page.render(df_power_tool)
-elif selected_page == "🛠️ Power Tools":
+elif selected_page == " Power Tools":
     power_tool_page.render(df_power_tool)
-elif selected_page == "🔋 Batteries":
+elif selected_page == " Batteries":
     battery_page.render(df_power_tool)
-elif selected_page == "📄 Report Qty":
+elif selected_page == " Report Qty":
     report_page.render(df_power_tool)
-elif selected_page == "🧪 S & T":
+elif selected_page == " S & T":
     st_page.render(df_power_tool)
-elif selected_page == "⚙️ Setting":
+elif selected_page == " Setting":
     settings_page.render(df_power_tool)
-elif selected_page == "📧 Email Center":
+elif selected_page == " Email Center":
     email_page.render(df_power_tool)
-elif selected_page == "🎯 Action Tracker":  # Thêm luồng này
+elif selected_page == " Action Tracker":  # Thêm luồng này
     action_tracker_page.render(df_power_tool)
-elif selected_page == "📝 RI":    # Thêm luồng này
+elif selected_page == " Record Issue":    # Thêm luồng này
     mqa_record_page.render(df_power_tool)
+elif selected_page == " Handbook":
+    handbook_page.render(df_power_tool)
 else:
     st.info(f"Bạn đang chọn {selected_page} - Đang chờ kết nối module.")

@@ -6,8 +6,11 @@ from database.db_helper import (
     get_setting_dropdowns, add_setting_dropdown,
     get_tier_rules, get_dynamic_rule
 )
+from database.ui_helper import show_loader, hide_loader, set_goku_background
 
 def render(df_shared=None):
+    run_id = show_loader(sub_text="Loading Settings Management...")
+    set_goku_background()
     # Khởi tạo Supabase client cho các thao tác cập nhật quy tắc
     @st.cache_resource
     def init_supabase():
@@ -120,6 +123,14 @@ def render(df_shared=None):
     # --- THÊM ĐOẠN NÀY CHO REGION ---
     render_dropdown_section("Region", "region")
     st.divider()
+    render_dropdown_section("Mfg Source", "mfg_source")
+    st.divider()
+    render_dropdown_section("Sensor", "sensor")
+    st.divider()
+    render_dropdown_section("Line", "line")
+    st.divider()
+    render_dropdown_section("Brand", "brand")
+    st.divider()
 
     # ================= 3. SAMPLE REQUIREMENTS RULES =================
     st.subheader("📈 SRR")
@@ -197,3 +208,5 @@ def render(df_shared=None):
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Error saving dynamic rule: {e}")
+
+    hide_loader(run_id=run_id)

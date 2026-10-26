@@ -3,31 +3,33 @@ import pandas as pd
 from datetime import date, timedelta
 from database.db_helper import get_report_qty, add_report_qty, get_master_models, get_setting_prefix
 from logic.sku_converter import convert_tti_to_ort
+from database.ui_helper import show_loader, hide_loader, render_global_marquee, set_goku_background
 
 def render(df_shared=None):
+    run_id = show_loader(sub_text="Loading Production Report Data...")
+    set_goku_background()
+    render_global_marquee()
     # ================= 1. TIÊU ĐỀ TRANG =================
     st.markdown("""
 <style>
 .module-header-wrapper {
     filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.2));
     margin-bottom: 25px;
-    margin-top: 30px;
 }
 
 .module-header {
-    background-color: #EBE600;
-    color: #000000;
+    background-color: #000000;
+    color: #FFFFFF;
     padding: 15px 25px;
     font-size: 35px;
-    font-weight: 800;
-    clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px); 
+    font-weight: 800;   
     text-transform: uppercase;
 }
 </style>
 <div class="module-header-wrapper">
     <div class="module-header">
-    <h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px;'>
-            📦 PRODUCTION - REPORT QTY
+    <h2 style='text-align: center; color: #FFFFFF; background-color: #000000; padding: 5px;'>
+            R E P O R T - Q T Y
 </h2></div>
 </div>
 """, unsafe_allow_html=True)
@@ -77,6 +79,7 @@ def render(df_shared=None):
         rec_qty = st.number_input("Received Quantity (Rec. qty) *", min_value=1, step=1, value=1000)
         
         st.divider()
+        
         # CẬP NHẬT: Khóa cứng nút Save nếu model bị Suspended
         if st.button("Save Report", type="primary", use_container_width=True, disabled=is_suspended):
             if tti_input and auto_ort and rec_qty:
@@ -191,9 +194,24 @@ def render(df_shared=None):
             
             cols = df_raw.columns.tolist()
             col1, col2, col3 = st.columns(3)
-            with col1: date_col = st.selectbox("Date Column", cols, index=0)
-            with col2: tti_col = st.selectbox("TTI Model Column", cols, index=1 if len(cols) > 1 else 0)
-            with col3: qty_col = st.selectbox("Quantity Column", cols, index=2 if len(cols) > 2 else 0)
+            
+            # Tìm vị trí cột phù hợp nếu tên khớp, nếu không thấy thì mặc định là 0
+            def get_default_index(target_names, columns_list):
+                for name in target_names:
+                    if name in columns_list:
+                        return columns_list.index(name)
+                return 0
+
+            default_date_idx = get_default_index(["Maf. Date", "Maf Date", "Date"], cols)
+            default_tti_idx = get_default_index(["Model No.", "Model No", "TTI Model", "Model"], cols)
+            default_qty_idx = get_default_index(["Order Qty", "Quantity", "Qty"], cols)
+
+            with col1: 
+                date_col = st.selectbox("Date Column", cols, index=default_date_idx)
+            with col2: 
+                tti_col = st.selectbox("TTI Model Column", cols, index=default_tti_idx)
+            with col3: 
+                qty_col = st.selectbox("Quantity Column", cols, index=default_qty_idx)
 
             if st.button("🔍 Scan & Analyze Data", type="primary", use_container_width=True):
                 valid_rows = []
@@ -220,13 +238,16 @@ def render(df_shared=None):
                         error_reasons.append("Invalid date format")
                         rec_date = date.today()
 
-                    if len(raw_tti) >= 3:
-                        if raw_tti.startswith("130") and len(raw_tti) == 9:
+                    # === ĐOẠN KIỂM TRA MỚI (CHỈ CHẤP NHẬN ĐÚNG 9 KÝ TỰ) ===
+                    if len(raw_tti) == 9:
+                        if raw_tti.startswith("130"):
                             ort_converted = raw_tti
                         else:
                             ort_converted = convert_tti_to_ort(raw_tti, df_prefix)
                     else:
-                        error_reasons.append("TTI model is too short")
+                        error_reasons.append("TTI model must be exactly 9 digits")
+                        ort_converted = ""
+                    # ======================================================
 
                     if not ort_converted:
                         error_reasons.append("Invalid Prefix")
@@ -275,6 +296,7 @@ def render(df_shared=None):
                     
                     col_fix1, col_fix2 = st.columns(2)
                     with col_fix1:
+                        # Bỏ st.rerun() ngầm gây mất bảng, để Streamlit tự đồng bộ qua session_state
                         if st.button("🔄 Scan again the edited rows", use_container_width=True):
                             new_valid = []
                             still_invalid = []
@@ -291,7 +313,7 @@ def render(df_shared=None):
                                 raw_tti = str(row["TTI model"]).strip().upper()
                                 raw_qty = row["Rec. qty"]
                                 raw_date = row["Rec. date"]
-                                row_idx = row["Dòng Excel"]
+                                row_idx = row["Excel Row"]
                                 
                                 error_reasons = []
                                 ort_converted = ""
@@ -309,19 +331,21 @@ def render(df_shared=None):
                                     error_reasons.append("Invalid date format")
                                     rec_date = date.today()
                                     
-                                if len(raw_tti) >= 3:
-                                    if raw_tti.startswith("130") and len(raw_tti) == 9:
+                                # === ĐOẠN KIỂM TRA MỚI (CHỈ CHẤP NHẬN ĐÚNG 9 KÝ TỰ) ===
+                                if len(raw_tti) == 9:
+                                    if raw_tti.startswith("130"):
                                         ort_converted = raw_tti
                                     else:
                                         ort_converted = convert_tti_to_ort(raw_tti, df_prefix)
                                 else:
-                                    error_reasons.append("TTI model is too short")
+                                    error_reasons.append("TTI model must be exactly 9 digits")
+                                    ort_converted = ""
+                                # ======================================================
                                     
                                 if not ort_converted:
                                     error_reasons.append("Invalid Prefix")
                                 elif ort_converted not in valid_ort_models_refresh:
                                     error_reasons.append("ORT Model does not exist")
-                                # CẬP NHẬT: Quét lại kiểm tra Suspended
                                 elif ort_converted in suspended_models_refresh:
                                     error_reasons.append("🛑 Model has been Suspended")
                                     
@@ -341,9 +365,10 @@ def render(df_shared=None):
                                         "Error Reason": " | ".join(error_reasons)
                                     })
                                     
+                            # Cập nhật trực tiếp vào session_state để giao diện tự refresh mượt mà
                             st.session_state.valid_rows.extend(new_valid)
                             st.session_state.invalid_rows = still_invalid
-                            st.rerun()
+                            st.success("✨ Scan completed! Valid rows have been moved, remaining errors are updated below.")
                             
                     with col_fix2:
                         import io
@@ -370,19 +395,17 @@ def render(df_shared=None):
                         st.rerun()
 
     # ================= 5. GIAO DIỆN CHÍNH =================
-    col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns([2, 2, 2, 2, 1]) 
+    # Chia lại cột: Upload Excel (trái), khoảng trống (giữa), Refresh Data (phải)
+    col_m1, col_m2, col_m3 = st.columns([2, 7, 2]) 
+    
     with col_m1:
-        if st.button("➕ Single Add", type="primary", use_container_width=True):
-            modal_single_report()
-    with col_m2:
-        if st.button("➕➕➕ Bulk Add", type="secondary", use_container_width=True):
-            modal_bulk_report()
-    with col_m3:
-        if st.button("📥 Upload Excel", type="secondary", use_container_width=True):
+        if st.button("📥 Upload Excel", type="primary", use_container_width=True):
             modal_upload_excel()
-    with col_m4:
-        pass
-    with col_m5:
+            
+    with col_m2:
+        pass # Khoảng trống ở giữa
+        
+    with col_m3:
         if st.button("🔄 Refresh Data", use_container_width=True):
             st.session_state.rep_filters = {
                 "start_date": date.today() - timedelta(days=30),
@@ -475,3 +498,5 @@ def render(df_shared=None):
         st.dataframe(df_display, use_container_width=True, hide_index=True, height=500)
     else:
         st.info("ℹ️ No production reports found in the selected date range.")
+    
+    hide_loader(run_id=run_id)

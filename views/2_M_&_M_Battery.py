@@ -8,8 +8,13 @@ from database.db_helper import (
     get_setting_dropdowns
 )
 
+from database.ui_helper import show_loader, hide_loader, render_global_marquee, set_goku_background
+
 # Khai báo biến đầu vào có giá trị mặc định để không bị lỗi khi app.py truyền df_power_tool vào
 def render(df_shared=None):
+    run_id = show_loader(sub_text="Loading Battery Master Data...")
+    set_goku_background()
+    render_global_marquee()
     # ================= 1. TIÊU ĐỀ TRANG =================
     st.markdown("""
 <style>
@@ -35,7 +40,7 @@ def render(df_shared=None):
 <div class="module-header-wrapper">
     <div class="module-header">
     <h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px;'>
-            🔋 BATTERIES LIST
+            👹👹👹 B A T T E R Y 👹👹👹
 </h2></div>
 </div>
 """, unsafe_allow_html=True)
@@ -335,3 +340,5 @@ def render(df_shared=None):
         st.dataframe(styled_all, width="stretch", hide_index=True)
     else:
         st.info("ℹ️ No matching records found.")
+
+    hide_loader(run_id=run_id)

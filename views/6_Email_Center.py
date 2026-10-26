@@ -12,7 +12,11 @@ from database.db_helper import (
     update_email_config
 )
 
+from database.ui_helper import show_loader, hide_loader, set_goku_background
+
 def render(df_power_tool=None):
+    run_id = show_loader(sub_text="Loading Email Center...")
+    set_goku_background()
     # ================= 1. TIÊU ĐỀ TRANG =================
     st.markdown("""
 <style>
@@ -147,3 +151,5 @@ def render(df_power_tool=None):
                     st.error("❌ Error saving to Database.")
     else:
         st.warning(f"⚠ Configuration for '{selected_task_name}' not found in Database. Please run SQL INSERT first.")
+
+    hide_loader(run_id=run_id)

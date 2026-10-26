@@ -19,6 +19,7 @@ supabase = init_connection()
 # ==========================================
 # 2. CÁC HÀM XỬ LÝ MASTER MODEL (TOOL & BATTERY)
 # ==========================================
+@st.cache_data(ttl=60)
 def get_master_models():
     """Lấy toàn bộ danh sách Master Model"""
     # Thêm .limit(10000) để phá giới hạn 1000 dòng mặc định của Supabase
@@ -82,6 +83,7 @@ def add_report_qty(data_list):
 # ==========================================
 # 4. CÁC HÀM XỬ LÝ ST REQUEST (Đã fix chuẩn phân trang)
 # ==========================================
+@st.cache_data(ttl=60)
 def get_st_requests():
     all_data = []
     start = 0
@@ -143,6 +145,7 @@ def update_st_request(req_id, data_dict):
     return response
 
     # --- SETTING PREFIX ---
+@st.cache_data(ttl=60)
 def get_setting_prefix():
     try:
         response = supabase.table("setting_prefix").select("*").execute()
@@ -157,6 +160,7 @@ def add_setting_prefix(data):
         print(f"Error adding prefix: {e}")
 
 # --- SETTING DROPDOWNS (Model Names, Categories, P.I.C) ---
+@st.cache_data(ttl=60)
 def get_setting_dropdowns(dropdown_type):
     try:
         response = supabase.table("setting_dropdowns").select("*").eq("type", dropdown_type).execute()
@@ -171,6 +175,7 @@ def add_setting_dropdown(dropdown_type, value):
         print(f"Error adding dropdown: {e}")
 
 # --- SETTING TIER RULES ---
+@st.cache_data(ttl=60)
 def get_tier_rules():
     try:
         response = supabase.table("setting_rules").select("*").execute()
@@ -179,6 +184,7 @@ def get_tier_rules():
         return pd.DataFrame(columns=["max_fg_accum", "req_samples"])
 
 # --- SETTING DYNAMIC RULE ---
+@st.cache_data(ttl=60)
 def get_dynamic_rule():
     try:
         response = supabase.table("setting_dynamic_rule").select("*").execute()
@@ -447,6 +453,7 @@ def ghi_nhan_gui_thanh_cong(task_key: str, sent_by: str = "Web User"):
 # ==========================================
 # 6. CÁC HÀM XỬ LÝ CẤU HÌNH EMAIL (EMAIL CONFIG)
 # ==========================================
+@st.cache_data(ttl=60)
 def get_email_config(task_key: str):
     """
     Lấy danh sách người nhận (TO, CC) cho một báo cáo cụ thể.
@@ -534,6 +541,7 @@ def save_8d_report(main_data, d1_list, d3_list, d4_list, d5_list):
 # ==========================================
 # 8. CÁC HÀM LẤY DỮ LIỆU ĐỂ HIỂN THỊ (TRACKING & VIEW)
 # ==========================================
+@st.cache_data(ttl=60)
 def get_mqa_list():
     """Lấy danh sách các báo cáo 8D để hiển thị ra bảng Tracking List"""
     try:
@@ -544,6 +552,7 @@ def get_mqa_list():
         print(f"Lỗi lấy danh sách MQA: {e}")
         return []
 
+@st.cache_data(ttl=60)
 def get_8d_report_by_id(issue_id):
     """Lấy toàn bộ dữ liệu của 1 báo cáo 8D từ cả 5 bảng (Main, D1, D3, D4, D5)"""
     try:
@@ -561,6 +570,7 @@ def get_8d_report_by_id(issue_id):
         print(f"Lỗi lấy chi tiết 8D: {e}")
         return None
 
+@st.cache_data(ttl=60)
 def get_mqa_list():
     try:
         # Lấy toàn bộ data từ mqa_issues, JOIN kèm dữ liệu từ bảng mqa_d1_team và mqa_d4_rca
@@ -661,6 +671,7 @@ def generate_ncr_no():
         print(f"Error generating NCR No: {e}")
         return f"{prefix}9999" # Trả về 9999 nếu có lỗi mạng/database
 
+@st.cache_data(ttl=60)
 def get_all_actions():
     """Kéo và gộp toàn bộ action từ D3 và D5, kèm theo Report No và issue_id"""
     try:
@@ -700,3 +711,44 @@ def get_all_actions():
     except Exception as e:
         print(f"Error fetching actions: {e}")
         return []
+
+def save_diary_task(title, description, priority, status):
+    """Lưu ghi chú mới vào bảng handbook_tasks"""
+    try:
+        data = {
+            "title": title,
+            "description": description,
+            "priority": priority,
+            "status": status
+        }
+        # Thực thi lệnh insert
+        response = supabase.table("handbook_tasks").insert(data).execute()
+        if response.data:
+            return True, "Success"
+        return False, "Không có dữ liệu trả về từ Supabase"
+    except Exception as e:
+        return False, str(e)
+
+@st.cache_data(ttl=60)
+def get_diary_tasks():
+    """Lấy danh sách ghi chú, sắp xếp mới nhất lên đầu"""
+    try:
+        # Lấy tất cả cột và order theo id giảm dần
+        response = supabase.table("handbook_tasks").select("*").order("id", desc=True).execute()
+        if response.data:
+            return response.data
+        return []
+    except Exception as e:
+        print(f"Lỗi lấy dữ liệu handbook_tasks: {e}")
+        return []
+
+def update_diary_task_status(task_id, new_status):
+    """Cập nhật trạng thái của ghi chú dựa trên ID"""
+    try:
+        # Gọi lệnh update của Supabase: SET status = new_status WHERE id = task_id
+        response = supabase.table("handbook_tasks").update({"status": new_status}).eq("id", task_id).execute()
+        if response.data:
+            return True, "Success"
+        return False, "Không tìm thấy dữ liệu để cập nhật"
+    except Exception as e:
+        return False, str(e)

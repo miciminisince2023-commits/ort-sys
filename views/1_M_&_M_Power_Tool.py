@@ -1,8 +1,13 @@
 import streamlit as st
 import pandas as pd
 from database.db_helper import add_master_model, get_setting_dropdowns, update_suspended_status
+from database.ui_helper import show_loader, hide_loader, set_goku_background, render_global_marquee
+import base64
 
 def render(df_power_tool):
+    run_id = show_loader(sub_text="Loading Power Tool Master Data...")
+    set_goku_background()
+    render_global_marquee()
     # Đảm bảo cột is_suspended luôn tồn tại để tránh lỗi nếu DB chưa kịp update
     if "is_suspended" not in df_power_tool.columns:
         df_power_tool["is_suspended"] = False
@@ -13,23 +18,22 @@ def render(df_power_tool):
     .module-header-wrapper {
         filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.2));
         margin-bottom: 25px;
-        margin-top: 30px;
     }
 
     .module-header {
-        background-color: #EBE600;
-        color: #000000;
+        background-color: #000000;
+        color: #FFFFFF;
         padding: 15px 25px;
         font-size: 35px;
         font-weight: 800;
-        clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px); 
+        
         text-transform: uppercase;
     }
     </style>
     <div class="module-header-wrapper">
         <div class="module-header">
-        <h2 style='text-align: center; color: #000000; background-color: #EBE600; padding: 10px; margin: 0;'>
-                🛠️ POWER TOOLS LIST
+        <h2 style='text-align: center; color: #FFFFFF; background-color: #000000; padding: 5px; margin: 0;'>
+                P O W E R - T O O L S
         </h2></div>
     </div>
     """, unsafe_allow_html=True)
@@ -96,8 +100,6 @@ def render(df_power_tool):
     }
     df_show = df_show.rename(columns=rename_mapping)
 
-    st.divider()
-    
     if "pt_filters" not in st.session_state:
         st.session_state.pt_filters = {
             "search": "", "date": [], "ort": "", "name": "", 
@@ -108,22 +110,10 @@ def render(df_power_tool):
     col_title, col_btn = st.columns([4, 1])
     with col_title:
         st.markdown("""
-        <style>
-        .alert-header-v2-wrapper { filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.2)); margin-bottom: 25px; margin-top: 30px; }
-        .alert-header-v2 {
-            background-color: #EBE600; color: #000000; padding: 10px 25px; font-size: 22px; font-weight: 800;
-            clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
-            margin-bottom: 1px; display: inline-flex; align-items: center; gap: 10px; width: fit-content;
-        }
-        </style>
-        <div class="alert-header-v2-wrapper">
-            <div class="alert-header-v2">
-                <h4 style='text-align: center; color: #000000; background-color: #EBE600; padding: 5px; margin: 0;'>
-                    🔍 Filters
-                </h4>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    <div style="font-size: 16px; font-weight: 900; color: #1a1a1a; text-transform: uppercase; margin-bottom: 10px; border-left: 5px solid #EBE600; padding-left: 12px; margin-top: 20px;">
+        ⚙️ Search & Filter Criteria
+    </div>
+    """, unsafe_allow_html=True)
 
     with st.expander("Expand filters", expanded=True):
         col_f1, col_f2, col_f3, col_f4 = st.columns(4)
@@ -182,14 +172,9 @@ def render(df_power_tool):
         if f_result != "All": df_show = df_show[df_show["Latest result"] == f_result]
 
     # ================= 5. HIỂN THỊ BẢNG DỮ LIỆU DATA EDITOR =================
-    st.divider()
     st.markdown("""
-    <div class="alert-header-v2-wrapper">
-        <div class="alert-header-v2">
-            <h4 style='text-align: center; color: #000000; background-color: #EBE600; padding: 5px; margin: 0;'>
-                📋 ORT Model List
-            </h4>
-        </div>
+    <div style="font-size: 16px; font-weight: 900; color: #1a1a1a; text-transform: uppercase; margin-bottom: 10px; border-left: 5px solid #EBE600; padding-left: 12px; margin-top: 20px;">
+        📋 ORT Model List
     </div>
     """, unsafe_allow_html=True)
 
@@ -276,3 +261,5 @@ def render(df_power_tool):
                         st.error("❌ Có lỗi khi lưu Database.")
                 else:
                     st.info("💡 Bạn chưa thay đổi trạng thái của model nào.")
+            
+    hide_loader(run_id=run_id)

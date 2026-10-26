@@ -10,11 +10,18 @@ def convert_tti_to_ort(tti_model, df_prefix):
         middle = tti_model[3:6]
         
         mapped_val = prefix
-        for index, row in df_prefix.iterrows():
-            if row["Prefix (3 digits)"] == prefix:
-                mapped_val = row["Mapped Code"]
-                break
-                
+        
+        if not df_prefix.empty:
+            # Tự động nhận diện tên cột: Ưu tiên "prefix"/"mapped", nếu không có thì lấy 2 cột đầu tiên
+            col_prefix = "prefix" if "prefix" in df_prefix.columns else df_prefix.columns[0]
+            col_mapped = "mapped" if "mapped" in df_prefix.columns else df_prefix.columns[1]
+            
+            for index, row in df_prefix.iterrows():
+                # Dùng hàm .get() để chống văng lỗi KeyError
+                if str(row.get(col_prefix, "")) == prefix:
+                    mapped_val = str(row.get(col_mapped, ""))
+                    break
+                    
         return f"{mapped_val}{middle}"
         
     return "Invalid code"
