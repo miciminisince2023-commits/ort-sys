@@ -28,7 +28,7 @@ except ImportError as e:
     st.stop()
 
 st.set_page_config(
-    page_title="Goku System",
+    page_title="TIS",
     page_icon="assets/logo_icon.png",
     layout="wide"
 )
